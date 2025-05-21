@@ -35,7 +35,7 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
     out: Pointer<T>,
     out_layout: &Layout,
     mut threads: usize,
-    prepacked_rhs: Option<Arc<Vec<hpt_matmul::NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>,
     post_op: Option<F1>,
     post_op_vec: Option<F2>
 )
@@ -184,7 +184,7 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
     out: Pointer<T>,
     out_layout: &Layout,
     mut threads: usize,
-    prepacked_rhs: Option<Arc<Vec<hpt_matmul::NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>,
     post_op: Option<F1>,
     post_op_vec: Option<F2>
 )
@@ -642,7 +642,7 @@ pub(crate) fn addmm_prepacked_(
     out_layout: &Layout,
     num_threads: usize,
     dtype: DType,
-    prepacked_rhs: Option<Arc<Vec<hpt_matmul::NewPrePackedRhs>>>
+    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>
 ) -> Result<(), TensorError> {
     macro_rules! matmul {
         ($dtype:ty) => {

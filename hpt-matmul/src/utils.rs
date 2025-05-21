@@ -595,7 +595,7 @@ pub(crate) fn prepack_b_mp_single_thread<T>(
 }
 
 #[allow(dead_code)]
-pub struct NewPrePackedRhs {
+pub struct PrePackedRhs {
     pub(crate) buffers: Vec<Pointer<u8>>,
     pub(crate) buffer: (Pointer<u8>, std::alloc::Layout),
     pub(crate) nr: usize,
@@ -603,7 +603,7 @@ pub struct NewPrePackedRhs {
     pub(crate) kc: usize,
 }
 
-impl Drop for NewPrePackedRhs {
+impl Drop for PrePackedRhs {
     fn drop(&mut self) {
         unsafe {
             std::alloc::dealloc(self.buffer.0.ptr as *mut u8, self.buffer.1);

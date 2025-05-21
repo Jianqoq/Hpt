@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
 use crate::utils::{
-    NewPrePackedRhs, prepack_b_mp_single_thread, prepack_b_single_thread, prepack_lhs,
+    PrePackedRhs,
+    prepack_b_mp_single_thread,
+    prepack_b_single_thread,
+    prepack_lhs,
     prepack_lhs_mp,
 };
-use crate::{Pointer, Zero, microkernel_trait::MatmulMicroKernel, utils::kernel_params, vec_size};
+use crate::{ Pointer, Zero, microkernel_trait::MatmulMicroKernel, utils::kernel_params, vec_size };
 use gemm_common::cache::DivCeil;
 use num_integer::Integer;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 
 pub(crate) fn _matmul<T, F1, F2>(
     n: usize,
@@ -20,18 +23,23 @@ pub(crate) fn _matmul<T, F1, F2>(
     res_ptr: (*mut T, i64),
     res_strides: [i64; 2],
     num_threads: usize,
-    mut prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<PrePackedRhs>>,
     has_post_op: bool,
     post_op: F1,
-    post_op_vec: F2,
-) where
-    T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
-    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    post_op_vec: F2
+)
+    where
+        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(
+            <T as MatmulMicroKernel>::SelfVec,
+            usize,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec +
+            Clone +
+            Send +
+            Sync +
+            'static
 {
     let matmul_fn = if has_post_op {
         crate::template::matmul_post::<T, F1, F2>
@@ -41,16 +49,8 @@ pub(crate) fn _matmul<T, F1, F2>(
     let lhs_ptr = Pointer::new(lhs_ptr.0 as *mut T, lhs_ptr.1);
     let rhs_ptr = Pointer::new(rhs_ptr.0 as *mut T, rhs_ptr.1);
     let res_ptr = Pointer::new(res_ptr.0 as *mut T, res_ptr.1);
-    let nr = if m == 1 {
-        <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>()
-    } else {
-        <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>()
-    };
-    let mr = if m == 1 {
-        1
-    } else {
-        <T as MatmulMicroKernel>::get_max_mr()
-    };
+    let nr = <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>();
+    let mr = <T as MatmulMicroKernel>::get_max_mr();
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]
@@ -66,15 +66,13 @@ pub(crate) fn _matmul<T, F1, F2>(
     if params.mc == 0 {
         params.mc = m.msrv_next_multiple_of(mr);
     }
-    if m == 1 {
-        do_lhs_pack = false;
-        params.nc = nr;
-        params.mc = 1;
-        params.kc = k;
-    }
-    let kc = params.kc;
+    let mut kc = params.kc;
     let mut mc = params.mc;
     let mut nc = params.nc;
+    if let Some(prepacked_rhs) = &prepacked_rhs {
+        let prepacked_rhs = prepacked_rhs.as_ref();
+        kc = prepacked_rhs.kc;
+    }
 
     if n >= m {
         let func = |nc: usize| {
@@ -82,26 +80,21 @@ pub(crate) fn _matmul<T, F1, F2>(
             let lda = lhs_strides[0];
             let lhs_col_stride = lhs_strides[1];
             let prepacked_lhs = if do_lhs_pack {
-                Some(prepack_lhs(
-                    #[cfg(feature = "bound_check")]
-                    (lhs_ptr.ptr, lhs_ptr.len),
-                    #[cfg(not(feature = "bound_check"))]
-                    lhs_ptr.ptr,
-                    lhs_strides,
-                    mr,
-                    mc,
-                    kc,
-                    k,
-                    m,
-                ))
+                let res =
+                    prepack_lhs(
+                        #[cfg(feature = "bound_check")] (lhs_ptr.ptr, lhs_ptr.len),
+                        #[cfg(not(feature = "bound_check"))] lhs_ptr.ptr,
+                        lhs_strides,
+                        mr,
+                        mc,
+                        kc,
+                        k,
+                        m
+                    );
+                mc = res.mc;
+                Some(res)
             } else {
                 None
-            };
-            if prepacked_rhs.is_none() {
-                if m == 1 && rhs_strides[1] != 1 {
-                    let prepacked = prepack_rhs(n, 1, k, rhs_ptr.ptr, rhs_strides, num_threads);
-                    prepacked_rhs = Some(Arc::new(prepacked));
-                }
             };
             let execute = move |i: usize| {
                 let start = i * nc;
@@ -115,11 +108,6 @@ pub(crate) fn _matmul<T, F1, F2>(
                 let sliced_ldb = rhs_strides[0];
                 let sliced_ldc = res_strides[0];
                 let sliced_rhs_col_stride = rhs_strides[1];
-                let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-                    Some(&prepacked_rhs[i])
-                } else {
-                    None
-                };
                 matmul_fn(
                     lhs_ptr,
                     rhs_ptr,
@@ -141,9 +129,9 @@ pub(crate) fn _matmul<T, F1, F2>(
                     mr,
                     do_lhs_pack,
                     prepacked_lhs.as_ref(),
-                    prepacked_rhs,
+                    prepacked_rhs.as_ref().map(|v| &**v),
                     post_op.clone(),
-                    post_op_vec.clone(),
+                    post_op_vec.clone()
                 );
             };
             if num_threads == 1 {
@@ -172,7 +160,7 @@ pub(crate) fn _matmul<T, F1, F2>(
     } else {
         let holder;
         let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-            &prepacked_rhs[0]
+            &prepacked_rhs
         } else {
             let (ptrs, packed_b, layout) = prepack_b_single_thread::<T>(
                 rhs_ptr,
@@ -183,9 +171,9 @@ pub(crate) fn _matmul<T, F1, F2>(
                 kc,
                 nc,
                 nr,
-                true,
+                true
             );
-            let prepacked_rhs = NewPrePackedRhs {
+            let prepacked_rhs = PrePackedRhs {
                 buffers: ptrs,
                 buffer: (packed_b, layout),
                 nr,
@@ -234,7 +222,7 @@ pub(crate) fn _matmul<T, F1, F2>(
                     None,
                     Some(prepacked_rhs),
                     post_op.clone(),
-                    post_op_vec.clone(),
+                    post_op_vec.clone()
                 );
             };
             if num_threads == 1 {
@@ -274,31 +262,36 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
     res_ptr: (*mut T, i64),
     res_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<PrePackedRhs>>,
     has_post_op: bool,
     post_op: F1,
     post_op_vec: F2,
     pack_vec: fn(
         *mut <T as MatmulMicroKernel>::MixedVec,
         *const <T as MatmulMicroKernel>::SelfVec,
-        usize,
+        usize
     ),
     pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
     pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
     vec_cast_back: fn(
         *mut <T as MatmulMicroKernel>::SelfVec,
-        *const <T as MatmulMicroKernel>::MixedVec,
+        *const <T as MatmulMicroKernel>::MixedVec
     ),
-    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType),
-) where
-    T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
-    <T as MatmulMicroKernel>::MixedType: Copy + Zero,
-    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType)
+)
+    where
+        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+        <T as MatmulMicroKernel>::MixedType: Copy + Zero,
+        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(
+            <T as MatmulMicroKernel>::SelfVec,
+            usize,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec +
+            Clone +
+            Send +
+            Sync +
+            'static
 {
     let matmul_fn = if has_post_op {
         crate::template::matmul_post_mp_sg::<T, F1, F2>
@@ -308,66 +301,39 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
     let lhs_ptr = Pointer::new(lhs_ptr.0 as *mut T, lhs_ptr.1);
     let rhs_ptr = Pointer::new(rhs_ptr.0 as *mut T, rhs_ptr.1);
     let res_ptr = Pointer::new(res_ptr.0 as *mut T, res_ptr.1);
-    let nr = if m == 1 {
-        <T as MatmulMicroKernel>::get_gemv_mp_nr() * vec_size::<T>()
-    } else {
-        <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>()
-    };
-    let mr = if m == 1 {
-        1
-    } else {
-        <T as MatmulMicroKernel>::get_max_mr()
-    };
+    let nr = <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>();
+    let mr = <T as MatmulMicroKernel>::get_max_mr();
     let do_lhs_pack = true;
     let mut params = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
     if params.nc == 0 {
-        params.nc = n.msrv_next_multiple_of(nr);
+        params.nc = n.next_multiple_of(nr);
     }
     if params.mc == 0 {
-        params.mc = m.msrv_next_multiple_of(mr);
-    }
-    if m == 1 {
-        params.nc = nr;
-        params.mc = 1;
-        params.kc = k;
+        params.mc = m.next_multiple_of(mr);
     }
     let mut mc = params.mc;
     let mut nc = params.nc;
-    let kc = params.kc;
+    let mut kc = params.kc;
+    if let Some(prepacked_rhs) = &prepacked_rhs {
+        let prepacked_rhs = prepacked_rhs.as_ref();
+        kc = prepacked_rhs.kc;
+    }
 
     if n >= m {
-        let prepacked_rhs = if prepacked_rhs.is_some() {
-            prepacked_rhs
-        } else {
-            if m == 1 {
-                Some(Arc::new(prepack_rhs::<T>(
-                    n,
-                    1,
-                    k,
-                    rhs_ptr.ptr,
-                    rhs_strides,
-                    num_threads,
-                )))
-            } else {
-                None
-            }
-        };
         let func = |nc: usize| {
             let num_nc = n.div_ceil(nc);
             let lda = lhs_strides[0];
             let lhs_col_stride = lhs_strides[1];
             let prepacked_lhs = prepack_lhs_mp(
-                #[cfg(feature = "bound_check")]
-                (lhs_ptr.ptr, lhs_ptr.len),
-                #[cfg(not(feature = "bound_check"))]
-                lhs_ptr.ptr,
+                #[cfg(feature = "bound_check")] (lhs_ptr.ptr, lhs_ptr.len),
+                #[cfg(not(feature = "bound_check"))] lhs_ptr.ptr,
                 lhs_strides,
                 mr,
                 mc,
                 kc,
                 k,
                 m,
-                pack_zero,
+                pack_zero
             );
             let execute = move |i: usize| {
                 let start = i * nc;
@@ -381,11 +347,6 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
                 let sliced_ldb = rhs_strides[0];
                 let sliced_ldc = res_strides[0];
                 let sliced_rhs_col_stride = rhs_strides[1];
-                let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-                    Some(&prepacked_rhs[i])
-                } else {
-                    None
-                };
                 matmul_fn(
                     lhs_ptr,
                     rhs_ptr,
@@ -407,14 +368,14 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
                     mr,
                     do_lhs_pack,
                     Some(&prepacked_lhs),
-                    prepacked_rhs,
+                    prepacked_rhs.as_ref().map(|v| &**v),
                     post_op.clone(),
                     post_op_vec.clone(),
                     pack_vec,
                     pack_vec_exceed,
                     pack_zero,
                     vec_cast_back,
-                    cast_back,
+                    cast_back
                 );
             };
             if num_threads == 1 {
@@ -445,7 +406,7 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
             let num_mc = m.div_ceil(mc);
             let holder;
             let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-                &prepacked_rhs[0]
+                &prepacked_rhs
             } else {
                 let (ptrs, packed_b, layout) = prepack_b_mp_single_thread::<T>(
                     rhs_ptr,
@@ -459,9 +420,9 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
                     true,
                     pack_vec,
                     pack_vec_exceed,
-                    pack_zero,
+                    pack_zero
                 );
-                let prepacked_rhs = NewPrePackedRhs {
+                let prepacked_rhs = PrePackedRhs {
                     buffers: ptrs,
                     buffer: (packed_b, layout),
                     nr,
@@ -513,7 +474,7 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
                     pack_vec_exceed,
                     pack_zero,
                     vec_cast_back,
-                    cast_back,
+                    cast_back
                 );
             };
             if num_threads == 1 {
@@ -553,22 +514,20 @@ pub fn matmul<T: 'static>(
     rhs_strides: [i64; 2],
     res_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<PrePackedRhs>>,
     post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static)>,
     post_op_vec: Option<
-        &(
-             dyn (Fn(
+        &(dyn (Fn(
             <T as MatmulMicroKernel>::SelfVec,
             usize,
-            usize,
-        ) -> <T as MatmulMicroKernel>::SelfVec)
-                 + Send
-                 + Sync
-                 + 'static
-         ),
-    >,
-) where
-    T: MatmulMicroKernel,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec) +
+            Send +
+            Sync +
+            'static)
+    >
+)
+    where T: MatmulMicroKernel
 {
     macro_rules! case {
         ($dtype:ty, $vec:ty) => {
@@ -771,22 +730,20 @@ pub fn addmm<T: 'static>(
     res_strides: [i64; 2],
     bias_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<Vec<NewPrePackedRhs>>>,
+    prepacked_rhs: Option<Arc<PrePackedRhs>>,
     post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static)>,
     post_op_vec: Option<
-        &(
-             dyn (Fn(
+        &(dyn (Fn(
             <T as MatmulMicroKernel>::SelfVec,
             usize,
-            usize,
-        ) -> <T as MatmulMicroKernel>::SelfVec)
-                 + Send
-                 + Sync
-                 + 'static
-         ),
-    >,
-) where
-    T: MatmulMicroKernel,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec) +
+            Send +
+            Sync +
+            'static)
+    >
+)
+    where T: MatmulMicroKernel
 {
     macro_rules! case {
         ($dtype:ty, $vec:ty) => {
@@ -1027,245 +984,110 @@ pub fn addmm<T: 'static>(
 
 pub(crate) fn prepack_rhs_non_mp<T>(
     n: usize,
-    m: usize,
     k: usize,
     rhs_ptr: *const T,
-    rhs_strides: [i64; 2],
-    num_threads: usize,
-) -> Vec<NewPrePackedRhs>
-where
-    T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+    rhs_strides: [i64; 2]
+) -> PrePackedRhs
+    where T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync
 {
     let rhs_ptr = Pointer::new(rhs_ptr as *mut T, (n * k) as i64);
-    let nr = if m == 1 {
-        <T as MatmulMicroKernel>::get_gemv_nr() * vec_size::<T>()
-    } else {
-        <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>()
-    };
-    let mr = if m == 1 {
-        1
-    } else {
-        <T as MatmulMicroKernel>::get_max_mr()
-    };
-    let mut params = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    let nr = <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>();
+    let mr = <T as MatmulMicroKernel>::get_max_mr();
+    let mut params = kernel_params(n, 0, k, nr, mr, std::mem::size_of::<T>());
     if params.nc == 0 {
-        params.nc = n.msrv_next_multiple_of(nr);
-    }
-    if params.mc == 0 {
-        params.mc = m.msrv_next_multiple_of(mr);
-    }
-    if m == 1 {
-        params.nc = nr;
-        params.mc = 1;
-        params.kc = k;
+        params.nc = n.next_multiple_of(nr);
     }
     let kc = params.kc;
-    let mut nc = params.nc;
+    let nc = params.nc;
 
-    if n >= m {
-        let func = |nc: usize| {
-            let num_nc = n.div_ceil(nc);
-            let res = (0..num_nc)
-                .into_par_iter()
-                .map(move |i| {
-                    let start = i * nc;
-                    let end = (start + nc).min(n);
-                    let rhs_ptr = rhs_ptr + (start as i64) * rhs_strides[1];
-                    let sliced_k = k;
-                    let sliced_n = end - start;
-                    let sliced_ldb = rhs_strides[0];
-                    let sliced_rhs_col_stride = rhs_strides[1];
-                    let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
-                        rhs_ptr,
-                        sliced_n,
-                        sliced_k,
-                        sliced_ldb,
-                        sliced_rhs_col_stride,
-                        kc,
-                        nc,
-                        nr,
-                        false,
-                    );
-                    let prepacked_rhs = NewPrePackedRhs {
-                        buffers: ptrs,
-                        buffer: (packed_b, layout),
-                        nr,
-                        nc,
-                        kc,
-                    };
-                    prepacked_rhs
-                })
-                .collect::<Vec<_>>();
-            res
-        };
-        let num_nc = n.div_ceil(nc);
-        if num_nc >= num_threads {
-            func(nc)
-        } else {
-            while nc != 0 && n.div_ceil(nc) < num_threads {
-                nc = (nc - 1).prev_multiple_of(&nr);
-            }
-            if nc == 0 { func(params.nc) } else { func(nc) }
-        }
-    } else {
-        let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
-            rhs_ptr,
-            n,
-            k,
-            rhs_strides[0],
-            rhs_strides[1],
-            kc,
-            nc,
-            nr,
-            true,
-        );
-        let prepacked_rhs = NewPrePackedRhs {
-            buffers: ptrs,
-            buffer: (packed_b, layout),
-            nr,
-            nc,
-            kc,
-        };
-        vec![prepacked_rhs]
-    }
+    let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
+        rhs_ptr,
+        n,
+        k,
+        rhs_strides[0],
+        rhs_strides[1],
+        kc,
+        nc,
+        nr,
+        true
+    );
+    let prepacked_rhs = PrePackedRhs {
+        buffers: ptrs,
+        buffer: (packed_b, layout),
+        nr,
+        nc,
+        kc,
+    };
+    prepacked_rhs
 }
 
 pub(crate) fn prepack_rhs_mp<T>(
     n: usize,
-    m: usize,
     k: usize,
     rhs_ptr: *const T,
     rhs_strides: [i64; 2],
-    num_threads: usize,
     pack_vec: fn(
         *mut <T as MatmulMicroKernel>::MixedVec,
         *const <T as MatmulMicroKernel>::SelfVec,
-        usize,
+        usize
     ),
     pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
-    pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
-) -> Vec<NewPrePackedRhs>
-where
-    T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
-    <T as MatmulMicroKernel>::MixedType: Copy + Zero,
+    pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T)
+)
+    -> PrePackedRhs
+    where
+        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+        <T as MatmulMicroKernel>::MixedType: Copy + Zero
 {
     let rhs_ptr = Pointer::new(rhs_ptr as *mut T, (n * k) as i64);
-    let nr = if m == 1 {
-        <T as MatmulMicroKernel>::get_gemv_mp_nr() * vec_size::<T>()
-    } else {
-        <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>()
-    };
-    let mr = if m == 1 {
-        1
-    } else {
-        <T as MatmulMicroKernel>::get_max_mr()
-    };
-    let mut params = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    let nr = <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>();
+    let mr = <T as MatmulMicroKernel>::get_max_mr();
+    let mut params = kernel_params(n, 0, k, nr, mr, std::mem::size_of::<T>());
     if params.nc == 0 {
-        params.nc = n.msrv_next_multiple_of(nr);
-    }
-    if params.mc == 0 {
-        params.mc = m.msrv_next_multiple_of(mr);
-    }
-    if m == 1 {
-        params.nc = nr;
-        params.mc = 1;
-        params.kc = k;
+        params.nc = n.next_multiple_of(nr);
     }
     let kc = params.kc;
-    let mut nc = params.nc;
+    let nc = params.nc;
 
-    if n >= m {
-        let func = |nc: usize| {
-            let num_nc = n.div_ceil(nc);
-
-            let res = (0..num_nc)
-                .into_iter()
-                .map(move |i| {
-                    let start = i * nc;
-                    let end = (start + nc).min(n);
-                    let rhs_ptr = rhs_ptr + (start as i64) * rhs_strides[1];
-                    let sliced_k = k;
-                    let sliced_n = end - start;
-                    let sliced_ldb = rhs_strides[0];
-                    let sliced_rhs_col_stride = rhs_strides[1];
-                    let (ptrs, packed_b, layout) = crate::utils::prepack_b_mp_single_thread::<T>(
-                        rhs_ptr,
-                        sliced_n,
-                        sliced_k,
-                        sliced_ldb,
-                        sliced_rhs_col_stride,
-                        kc,
-                        nc,
-                        nr,
-                        false,
-                        pack_vec,
-                        pack_vec_exceed,
-                        pack_zero,
-                    );
-                    let prepacked_rhs = NewPrePackedRhs {
-                        buffers: ptrs,
-                        buffer: (packed_b, layout),
-                        nr,
-                        nc,
-                        kc,
-                    };
-                    prepacked_rhs
-                })
-                .collect::<Vec<_>>();
-            res
-        };
-        let num_nc = n.div_ceil(nc);
-        if num_nc >= num_threads {
-            func(nc)
-        } else {
-            while nc != 0 && n.div_ceil(nc) < num_threads {
-                nc = (nc - 1).prev_multiple_of(&nr);
-            }
-            if nc == 0 { func(params.nc) } else { func(nc) }
-        }
-    } else {
-        let (ptrs, packed_b, layout) = crate::utils::prepack_b_mp_single_thread::<T>(
-            rhs_ptr,
-            n,
-            k,
-            rhs_strides[0],
-            rhs_strides[1],
-            kc,
-            nc,
-            nr,
-            true,
-            pack_vec,
-            pack_vec_exceed,
-            pack_zero,
-        );
-        let prepacked_rhs = NewPrePackedRhs {
-            buffers: ptrs,
-            buffer: (packed_b, layout),
-            nr,
-            nc,
-            kc,
-        };
-        vec![prepacked_rhs]
-    }
+    let (ptrs, packed_b, layout) = crate::utils::prepack_b_mp_single_thread::<T>(
+        rhs_ptr,
+        n,
+        k,
+        rhs_strides[0],
+        rhs_strides[1],
+        kc,
+        nc,
+        nr,
+        true,
+        pack_vec,
+        pack_vec_exceed,
+        pack_zero
+    );
+    let prepacked_rhs = PrePackedRhs {
+        buffers: ptrs,
+        buffer: (packed_b, layout),
+        nr,
+        nc,
+        kc,
+    };
+    prepacked_rhs
 }
 
 pub fn prepack_rhs<T>(
     n: usize,
-    m: usize,
     k: usize,
     rhs_ptr: *const T,
-    rhs_strides: [i64; 2],
-    num_threads: usize,
-) -> Vec<NewPrePackedRhs>
-where
-    T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+    rhs_strides: [i64; 2]
+) -> PrePackedRhs
+    where T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync
 {
-    let is_mp = std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::f16>()
-        || std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::bf16>();
+    let is_mp =
+        std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::f16>() ||
+        std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::bf16>();
     if is_mp {
         macro_rules! f16_prepack {
-            ($dtype:ty, $vec:ty, $im:ty, $im_vec:ty) => {{
+            ($dtype:ty, $vec:ty, $im:ty, $im_vec:ty) => {
+        {
                 if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
                     type T = $dtype;
                     type Vec = $vec;
@@ -1298,17 +1120,16 @@ where
                     }
                     return prepack_rhs_mp::<T>(
                         n,
-                        m,
                         k,
                         rhs_ptr as *const T,
                         rhs_strides,
-                        num_threads,
                         pack_vec,
                         pack_vec_exceed,
                         pack_zero,
                     );
                 }
-            }};
+        }
+            };
         }
         #[cfg(feature = "f16")]
         f16_prepack!(half::f16, crate::F16Vec, f32, crate::F32Vec);
@@ -1316,6 +1137,6 @@ where
         f16_prepack!(half::bf16, crate::Bf16Vec, f32, crate::F32Vec);
         panic!("Unsupported type: {:?}", std::any::TypeId::of::<T>());
     } else {
-        prepack_rhs_non_mp::<T>(n, m, k, rhs_ptr, rhs_strides, num_threads)
+        prepack_rhs_non_mp::<T>(n, k, rhs_ptr, rhs_strides)
     }
 }

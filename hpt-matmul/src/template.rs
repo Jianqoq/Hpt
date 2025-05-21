@@ -7,7 +7,7 @@ use crate::{
     Pointer, Zero,
     microkernel_trait::MatmulMicroKernel,
     utils::{
-        L2_SLAB, L3_SLAB, NewPrePackedRhs, PrePackedLhs, pack_a_mixed_precision_single_thread,
+        L2_SLAB, L3_SLAB, PrePackedRhs, PrePackedLhs, pack_a_mixed_precision_single_thread,
         pack_a_single_thread, pack_b_mixed_precision, pack_b_single_thread,
     },
     vec_size,
@@ -39,7 +39,7 @@ pub(crate) fn func_name<T, F1, F2>(
     mr: usize,
     do_lhs_pack: bool,
     prepacked_lhs: Option<&PrePackedLhs>,
-    prepack_rhs: Option<&NewPrePackedRhs>,
+    prepack_rhs: Option<&PrePackedRhs>,
     #[allow(unused_variables)] post_op: F1,
     #[allow(unused_variables)] post_op_vec: F2,
 ) where
@@ -225,7 +225,7 @@ pub(crate) fn func_name<T, F1, F2>(
     mr: usize,
     do_lhs_pack: bool,
     prepacked_lhs: Option<&PrePackedLhs>,
-    prepack_rhs: Option<&NewPrePackedRhs>,
+    prepack_rhs: Option<&PrePackedRhs>,
     #[allow(unused_variables)] post_op: F1,
     #[allow(unused_variables)] post_op_vec: F2,
     pack_vec: fn(
@@ -429,7 +429,7 @@ pub(crate) fn func_name<T, F, F2>(
     kc: usize,
     nc: usize,
     nr: usize,
-    prepack_rhs: Option<&NewPrePackedRhs>,
+    prepack_rhs: Option<&PrePackedRhs>,
     #[allow(unused_variables)] post_op: F,
     #[allow(unused_variables)] post_op_vec: F2,
 ) where
@@ -473,7 +473,7 @@ pub(crate) fn func_name<T, F, F2>(
     kc: usize,
     nc: usize,
     nr: usize,
-    prepack_rhs: Option<&NewPrePackedRhs>,
+    prepack_rhs: Option<&PrePackedRhs>,
     #[allow(unused_variables)] post_op: F,
     #[allow(unused_variables)] post_op_vec: F2,
     vec_cast_back: fn(

@@ -416,6 +416,6 @@ pub(crate) trait VecTrait<T> {
 
 pub use matmul::{addmm, matmul, prepack_rhs};
 
-pub use utils::{NewPrePackedRhs, kernel_params};
+pub use utils::{PrePackedRhs, kernel_params};
 
 static ALIGN: usize = 128;
