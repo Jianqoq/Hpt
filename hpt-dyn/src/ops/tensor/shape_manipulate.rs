@@ -19,6 +19,7 @@ use crate::{
 };
 
 impl Tensor {
+    #[track_caller]
     pub fn reshape(&self, shape: &[i64]) -> Result<Tensor, TensorError> {
         let mut new_shape = shape.to_vec();
 

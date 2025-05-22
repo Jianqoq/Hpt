@@ -758,3 +758,9 @@ pub(crate) unsafe fn vcast_vf_vm(vm: VMask) -> VFloat {
 pub(crate) unsafe fn vcast_vf_vo(vf: Vopmask) -> VFloat {
     vcast_vf_vm(vf)
 }
+
+#[allow(unused)]
+#[inline(always)]
+pub(crate) unsafe fn vdiv_vf_vf_vf(x: VFloat, y: VFloat) -> VFloat {
+    vdivq_f32(x, y)
+}

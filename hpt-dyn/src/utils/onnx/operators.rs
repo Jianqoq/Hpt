@@ -1,7 +1,9 @@
 #![allow(unused)]
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
+use hpt_common::layout::layout::Layout;
+use hpt_matmul::PrePackedRhs;
 use hpt_types::dtype::DType;
 
 #[derive(Debug, Clone)]
@@ -156,6 +158,7 @@ pub(crate) struct Gemm {
 pub(crate) struct Matmul {
     pub(crate) a: String,
     pub(crate) b: String,
+    pub(crate) packed_b: Option<Arc<(PrePackedRhs, Layout)>>,
     pub(crate) output: String,
 }
 
@@ -338,6 +341,8 @@ pub(crate) struct Lstm {
     pub(crate) y: Option<String>,
     pub(crate) y_h: Option<String>,
     pub(crate) y_c: Option<String>,
+    pub(crate) prepacked_w: Arc<Vec<(PrePackedRhs, Layout)>>,
+    pub(crate) prepacked_r: Arc<Vec<(PrePackedRhs, Layout)>>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

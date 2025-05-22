@@ -31,13 +31,14 @@ anyhow = { workspace = true }
 # rand = { workspace = true }
 # ndarray = { workspace = true }
 # candle-core = { workspace = true }
-hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64", "f16"] }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
 env_logger = { workspace = true }
 log = { workspace = true }
 # tract-core = { workspace = true }
 # tract-onnx = { workspace = true }
 half = { workspace = true }
 safetensors = { workspace = true }
+spindle = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"

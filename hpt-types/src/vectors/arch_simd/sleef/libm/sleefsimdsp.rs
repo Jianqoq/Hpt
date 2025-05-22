@@ -1,6 +1,10 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx2",
+    not(target_feature = "avx512f")
+))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 use crate::arch_simd::sleef::arch::helper_avx512 as helper;
@@ -14,15 +18,15 @@ use crate::arch_simd::sleef::arch::helper_sse as helper;
 use helper::{
     vabs_vf_vf, vadd_vf_vf_vf, vadd_vi2_vi2_vi2, vand_vi2_vi2_vi2, vand_vi2_vo_vi2, vand_vm_vm_vm,
     vand_vm_vo32_vm, vand_vo_vo_vo, vandnot_vi2_vi2_vi2, vandnot_vm_vm_vm, vandnot_vm_vo32_vm,
-    vandnot_vo_vo_vo, vcast_vf_f, vcast_vf_vi2, vcast_vi2_i, veq_vo_vf_vf, veq_vo_vi2_vi2,
-    vgather_vf_p_vi2, vge_vo_vf_vf, vgt_vi2_vi2_vi2, vgt_vo_vf_vf, vgt_vo_vi2_vi2, visinf_vo_vf,
-    visnan_vo_vf, vispinf_vo_vf, vle_vo_vf_vf, vlt_vo_vf_vf, vmax_vf_vf_vf, vmin_vf_vf_vf,
-    vmla_vf_vf_vf_vf, vmlanp_vf_vf_vf_vf, vmul_vf_vf_vf, vneg_vf_vf, vneg_vi2_vi2, vor_vi2_vi2_vi2,
-    vor_vm_vm_vm, vor_vm_vo32_vm, vor_vo_vo_vo, vreinterpret_vf_vi2, vreinterpret_vf_vm,
-    vreinterpret_vi2_vf, vreinterpret_vm_vf, vrint_vf_vf, vrint_vi2_vf, vsel_vf_vo_f_f,
-    vsel_vf_vo_vf_vf, vsel_vi2_vo_vi2_vi2, vsll_vi2_vi2_i, vsra_vi2_vi2_i, vsrl_vi2_vi2_i,
-    vsub_vf_vf_vf, vsub_vi2_vi2_vi2, vtestallones_i_vo32, vtruncate_vf_vf, vtruncate_vi2_vf,
-    vxor_vm_vm_vm, vxor_vo_vo_vo,
+    vandnot_vo_vo_vo, vcast_vf_f, vcast_vf_vi2, vcast_vi2_i, vdiv_vf_vf_vf, veq_vo_vf_vf,
+    veq_vo_vi2_vi2, vgather_vf_p_vi2, vge_vo_vf_vf, vgt_vi2_vi2_vi2, vgt_vo_vf_vf, vgt_vo_vi2_vi2,
+    visinf_vo_vf, visnan_vo_vf, vispinf_vo_vf, vle_vo_vf_vf, vlt_vo_vf_vf, vmax_vf_vf_vf,
+    vmin_vf_vf_vf, vmla_vf_vf_vf_vf, vmlanp_vf_vf_vf_vf, vmul_vf_vf_vf, vneg_vf_vf, vneg_vi2_vi2,
+    vor_vi2_vi2_vi2, vor_vm_vm_vm, vor_vm_vo32_vm, vor_vo_vo_vo, vreinterpret_vf_vi2,
+    vreinterpret_vf_vm, vreinterpret_vi2_vf, vreinterpret_vm_vf, vrint_vf_vf, vrint_vi2_vf,
+    vsel_vf_vo_f_f, vsel_vf_vo_vf_vf, vsel_vi2_vo_vi2_vi2, vsll_vi2_vi2_i, vsra_vi2_vi2_i,
+    vsrl_vi2_vi2_i, vsub_vf_vf_vf, vsub_vi2_vi2_vi2, vtestallones_i_vo32, vtruncate_vf_vf,
+    vtruncate_vi2_vf, vxor_vm_vm_vm, vxor_vo_vo_vo,
 };
 
 use crate::vectors::arch_simd::sleef::{
@@ -902,7 +906,7 @@ pub(crate) unsafe fn xlogf_u1(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, s) = {
-        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetexp_vf_vf, vgetmant_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0f32 / 0.75f32)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0f32), e);
         let m = vgetmant_vf_vf(d);
@@ -1142,7 +1146,7 @@ unsafe fn logkf(d: VFloat) -> VFloat2 {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
-        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetexp_vf_vf, vgetmant_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0f32 / 0.75f32)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0f32), e);
         let m = vgetmant_vf_vf(d);
@@ -1311,28 +1315,25 @@ pub(crate) unsafe fn xcoshf(x: VFloat) -> VFloat {
 }
 
 #[inline(always)]
-pub(crate) unsafe fn xtanhf(x: VFloat) -> VFloat {
-    let y = vabs_vf_vf(x);
-    let mut d = expk2f(vcast_vf2_vf_vf(y, vcast_vf_f(0.0)));
-    let e = dfrec_vf2_vf2(d);
-    d = dfdiv_vf2_vf2_vf2(
-        dfadd_vf2_vf2_vf2(d, dfneg_vf2_vf2(e)),
-        dfadd_vf2_vf2_vf2(d, e),
-    );
-    let mut y = vadd_vf_vf_vf(vf2getx_vf_vf2(d), vf2gety_vf_vf2(d));
+pub(crate) unsafe fn xtanhf(mut x: VFloat) -> VFloat {
+    x = vmax_vf_vf_vf(vcast_vf_f(-9.0), x);
+    x = vmin_vf_vf_vf(vcast_vf_f(9.0), x);
+    let value_squared = vmul_vf_vf_vf(x, x);
 
-    y = vsel_vf_vo_vf_vf(
-        vor_vo_vo_vo(
-            vgt_vo_vf_vf(vabs_vf_vf(x), vcast_vf_f(8.664_34_f32)),
-            visnan_vo_vf(y),
-        ),
-        vcast_vf_f(1.0),
-        y,
-    );
-    y = vmulsign_vf_vf_vf(y, x);
-    y = vreinterpret_vf_vm(vor_vm_vo32_vm(visnan_vo_vf(x), vreinterpret_vm_vf(y)));
+    let mut p;
+    p = vmla_vf_vf_vf_vf(value_squared, vcast_vf_f(-2.76076847742355e-16), vcast_vf_f(2.00018790482477e-13));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(-8.60467152213735e-11));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(5.12229709037114e-08));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(1.48572235717979e-05));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(6.37261928875436e-04));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(4.89352455891786e-03));
+    p = vmul_vf_vf_vf(p, x);
 
-    y
+    let mut q;
+    q = vmla_vf_vf_vf_vf(value_squared, vcast_vf_f(1.19825839466702e-06), vcast_vf_f(1.18534705686654e-04));
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(2.26843463243900e-03));
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(4.89352518554385e-03));
+    vdiv_vf_vf_vf(p, q)
 }
 
 #[inline(always)]
@@ -1640,7 +1641,7 @@ pub(crate) unsafe fn xlog10f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
-        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetexp_vf_vf, vgetmant_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0), e);
         let m = vgetmant_vf_vf(d);
@@ -1725,7 +1726,7 @@ pub(crate) unsafe fn xlog2f(d: VFloat) -> VFloat {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
-        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vf_vf, vgetexp_vf_vf};
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetexp_vf_vf, vgetmant_vf_vf};
         let mut e = vgetexp_vf_vf(vmul_vf_vf_vf(d, vcast_vf_f(1.0 / 0.75)));
         e = vsel_vf_vo_vf_vf(vispinf_vo_vf(e), vcast_vf_f(128.0), e);
         let m = vgetmant_vf_vf(d);
@@ -2232,4 +2233,35 @@ pub(crate) unsafe fn xminf(x: VFloat, y: VFloat) -> VFloat {
         x,
         vsel_vf_vo_vf_vf(vgt_vo_vf_vf(y, x), x, y),
     )
+}
+
+// reference onnxruntime
+pub(crate) unsafe fn xsigmoid(mut x: VFloat) -> VFloat {
+    x = vmax_vf_vf_vf(vcast_vf_f(-18.0f32), x);
+    x = vmin_vf_vf_vf(vcast_vf_f(18.0f32), x);
+    let value_squared = vmul_vf_vf_vf(x, x);
+
+    let mut p;
+    p = vmla_vf_vf_vf_vf(
+        value_squared,
+        vcast_vf_f(4.37031012579801e-11),
+        vcast_vf_f(1.15627324459942e-07),
+    );
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(6.08574864600143e-05));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(8.51377133304701e-03));
+    p = vmla_vf_vf_vf_vf(p, value_squared, vcast_vf_f(2.48287947061529e-01));
+    p = vmul_vf_vf_vf(p, x);
+
+    let mut q;
+    q = vmla_vf_vf_vf_vf(
+        value_squared,
+        vcast_vf_f(6.10247389755681e-13),
+        vcast_vf_f(5.76102136993427e-09),
+    );
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(6.29106785017040e-06));
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(1.70198817374094e-03));
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(1.16817656904453e-01));
+    q = vmla_vf_vf_vf_vf(q, value_squared, vcast_vf_f(9.93151921023180e-01));
+
+    vadd_vf_vf_vf(vdiv_vf_vf_vf(p, q), vcast_vf_f(0.5))
 }

@@ -1,4 +1,9 @@
-use hpt_common::error::{base::TensorError, onnx::OnnxError};
+use hpt_common::{
+    error::{base::TensorError, onnx::OnnxError},
+    layout::layout::Layout,
+};
+use hpt_macros::select;
+use hpt_matmul::PrePackedRhs;
 use hpt_types::{dtype::DType, into_scalar::Cast};
 
 use super::{
@@ -12,10 +17,11 @@ use super::{
 use crate::{
     Tensor,
     onnx::{NodeProto, TensorProto, attribute_proto},
+    ops::tensor::matmul::matmul::mm_prepack,
     utils::onnx::operators::{ConstantOfShape, Conv2d},
 };
 use hpt_traits::tensor::TensorInfo;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 macro_rules! get {
     ($map:expr, $key:expr) => {
@@ -606,27 +612,40 @@ pub(crate) fn gemm_init(
 
 pub(crate) fn matmul_init(
     node: &NodeProto,
-
     formats: &mut HashMap<String, TensorFormat>,
-) -> Vec<Operator> {
+    initializer_map: &mut HashMap<String, Tensor>,
+) -> Result<Vec<Operator>, TensorError> {
     let a = node.input[0].as_str().to_string();
     let b = node.input[1].as_str().to_string();
     let output = node.output[0].as_str().to_string();
     let name = node.name().to_string();
     let mut ret = vec![];
     let new_a_name = try_pc(&mut ret, a.as_str(), &name, formats);
-    let new_b_name = try_pc(&mut ret, b.as_str(), &name, formats);
+    let (new_b_name, prepacked_b) = if let Some(b) = initializer_map.get(b.as_str()) {
+        if b.ndim() == 2 {
+            let n = b.shape()[b.ndim() - 1];
+            let k = b.shape()[b.ndim() - 2];
+            let packed_b = mm_prepack(&b, n as usize, k as usize, true);
+            (None, Some(Arc::new((packed_b, b.layout.clone()))))
+        } else {
+            (None, None)
+        }
+    } else {
+        let new_b_name = try_pc(&mut ret, b.as_str(), &name, formats);
+        (new_b_name, None)
+    };
     insert_default_format(formats, &output);
     let matmul = Matmul {
         a: new_a_name.unwrap_or(a.to_string()),
         b: new_b_name.unwrap_or(b.to_string()),
         output,
+        packed_b: prepacked_b,
     };
     ret.push(Operator::MatMul(Base {
         base: matmul,
         id: name,
     }));
-    ret
+    Ok(ret)
 }
 
 pub(crate) fn pooling_init(
@@ -941,14 +960,72 @@ pub(crate) fn slice_init(
 pub(crate) fn lstm_init(
     node: &NodeProto,
     formats: &mut HashMap<String, TensorFormat>,
-) -> Vec<Operator> {
+    initializer_map: &mut HashMap<String, Tensor>,
+) -> Result<Vec<Operator>, TensorError> {
     let x = node.input[0].as_str();
-    let w = node.input[1].as_str();
-    let r = node.input[2].as_str();
+    let w = node.input[1].as_str(); // [num_directions, 4 * hidden_size, input_size]
+    let r = node.input[2].as_str(); // [num_directions, 4 * hidden_size, hidden_size]
+    fn prepack(
+        initializer_map: &HashMap<String, Tensor>,
+        w: &str,
+    ) -> Result<Vec<(PrePackedRhs, Layout)>, TensorError> {
+        if let Some(w) = initializer_map.get(w) {
+            let num_directions = w.shape()[0];
+            if num_directions == 1 {
+                let w_t = w.squeeze(&[0])?.t()?;
+                Ok(vec![(
+                    mm_prepack(&w_t, w_t.shape()[1] as usize, w_t.shape()[0] as usize, true),
+                    w_t.layout().clone(),
+                )])
+            } else {
+                let mut ret = vec![];
+                for dir in 0..num_directions {
+                    let w0 = w.slice(&select![dir: dir + 1, :])?.squeeze(&[0])?;
+                    let w_t = w0.t()?;
+                    ret.push((
+                        mm_prepack(&w_t, w_t.shape()[1] as usize, w_t.shape()[0] as usize, true),
+                        w_t.layout().clone(),
+                    ));
+                }
+                Ok(ret)
+            }
+        } else {
+            panic!("w tensor should be in initializers");
+        }
+    }
+    let prepacked_w = prepack(initializer_map, w)?;
+    let prepacked_r = prepack(initializer_map, r)?;
     let mut b = if node.input[3].as_str() == "" {
         None
     } else {
-        Some(node.input[3].as_str().to_string())
+        let bias = node.input[3].as_str().to_string(); // [num_directions, 8 * hidden_size]
+        if let Some(tensor) = initializer_map.get(&bias) {
+            let hidden_size = tensor.shape()[1] / 8;
+            let summed = if tensor.shape()[0] == 1 {
+                let mut empty =
+                    Tensor::empty(&[1, 4 * hidden_size], tensor.dtype(), crate::Device::Cpu)?;
+                let bias = tensor.slice(&select![0, :])?.squeeze(&[0])?;
+                let wb = bias.slice(&select![0:4*hidden_size])?;
+                let rb = bias.slice(&select![4*hidden_size:])?;
+                wb.add_(&rb, &mut empty)?;
+                empty
+            } else {
+                let empty =
+                    Tensor::empty(&[2, 4 * hidden_size], tensor.dtype(), crate::Device::Cpu)?;
+                for dir in 0..2 {
+                    let bias0 = tensor.slice(&select![dir, :])?.squeeze(&[0])?;
+                    let wb0 = bias0.slice(&select![0:4*hidden_size])?;
+                    let rb0 = bias0.slice(&select![4*hidden_size:])?;
+                    let mut empty0 = empty.slice(&select![dir, :])?.squeeze(&[0])?;
+                    wb0.add_(&rb0, &mut empty0)?;
+                }
+                empty
+            };
+            initializer_map.insert(bias.clone(), summed);
+        } else {
+            panic!("bias tensor should be in initializers");
+        }
+        Some(bias)
     };
     let mut sequence_lens = if node.input[4].as_str() == "" {
         None
@@ -1046,6 +1123,8 @@ pub(crate) fn lstm_init(
     if let Some(y_c) = &y_c {
         insert_default_format(formats, y_c);
     }
+    initializer_map.remove(w);
+    initializer_map.remove(r);
     let lstm = Lstm {
         x: new_x.unwrap_or(x.to_string()),
         w: new_w.unwrap_or(w.to_string()),
@@ -1066,17 +1145,18 @@ pub(crate) fn lstm_init(
         y,
         y_h,
         y_c,
+        prepacked_w: Arc::new(prepacked_w),
+        prepacked_r: Arc::new(prepacked_r),
     };
     ret.push(Operator::Lstm(Base {
         base: lstm,
         id: name,
     }));
-    ret
+    Ok(ret)
 }
 
 pub(crate) fn identity_init(
     node: &NodeProto,
-
     formats: &mut HashMap<String, TensorFormat>,
 ) -> Operator {
     let input_name = node.input[0].as_str();

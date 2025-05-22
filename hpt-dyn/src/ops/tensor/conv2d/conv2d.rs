@@ -11,7 +11,6 @@ use hpt_types::type_promote::NormalOutPromote;
 
 use crate::Tensor;
 use crate::ops::tensor::conv2d::conv2d_mp;
-use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 
 use super::batchnorm_conv2d::batchnorm_conv2d;
 use super::conv2d_group::conv2d_group;
@@ -29,8 +28,6 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
 ) -> Result<Tensor, TensorError>
-where
-    T: MatmulMicroKernel,
 {
     let input = if !input.is_contiguous() || input.parent.is_some() {
         input.contiguous()?
@@ -204,7 +201,7 @@ impl Tensor {
         }
     }
 
-    pub fn conv2d_post<T: CommonBounds + ToDType + Conv2dMicroKernel + MatmulMicroKernel>(
+    pub fn conv2d_post<T: CommonBounds + ToDType + Conv2dMicroKernel>(
         &self,
         kernels: &Tensor,
         bias: Option<&Tensor>,
@@ -274,7 +271,6 @@ impl Tensor {
     where
         T: CommonBounds
             + Conv2dMicroKernel
-            + MatmulMicroKernel
             + Cast<<T as NormalOutPromote>::Intermediate>
             + ToDType,
         <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,

@@ -7,7 +7,6 @@ use hpt_types::dtype::ToDType;
 
 use crate::Tensor;
 use crate::ops::tensor::conv2d::utils::{ cal_conv2d_output_shape, handle_post };
-use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
 
 use super::microkernel_trait::Conv2dMicroKernel;
 use super::utils::create_packed_input_img2col;
@@ -31,7 +30,6 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     post_vec: Option<fn(T::Vec) -> T::Vec>,
     mut output: Tensor
 ) -> Result<Tensor, TensorError>
-    where T: MatmulMicroKernel
 {
     let in_channels = img_channels;
     let (step_width, step_height) = (steps[0], steps[1]);

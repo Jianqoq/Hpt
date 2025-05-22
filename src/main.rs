@@ -1,25 +1,25 @@
-use hpt::Tensor;
-use hpt_dyn::set_num_threads;
-use hpt_dyn::{ onnx::load_onnx, DType, Device, Tensor as DynTensor };
+use hpt_dyn::{onnx::load_onnx, DType, Device, Tensor as DynTensor};
 use std::collections::HashMap;
-use hpt::common::TensorInfo;
-use hpt::ops::*;
 // use tract_onnx::prelude::*;
 fn main() -> anyhow::Result<()> {
     let mut res = Vec::new();
-    for i in 15..16 {
-        let model = load_onnx("resnet34.onnx").expect("加载模型失败");
-        let mut map = HashMap::new();
-        map.insert("input".to_string(), DynTensor::ones(&[1, 3, 64 + i * 32, 64 + i * 32], DType::F32, Device::Cpu)?);
-        let initialized = model.initialize()?;
-
-        let now = std::time::Instant::now();
-        for _ in 0..1 {
-            let res = initialized.execute(&map)?;
-            // println!("res: {    }", res["output"]);
-        }
-        res.push(now.elapsed() / 1);
+    // for i in 0..1 {
+    let model = load_onnx("lstm.onnx").expect("加载模型失败");
+    let mut map = HashMap::new();
+    map.insert(
+        "input".to_string(),
+        DynTensor::ones(&[128, 256, 128], DType::F32, Device::Cpu)?,
+    );
+    let initialized = model.initialize()?;
+    let now = std::time::Instant::now();
+    // spindle::with_lock(8, || {
+    for _ in 0..100 {
+        let res = initialized.execute(&map).unwrap();
+        // println!("res: {}", res["output"]);
     }
+    // });
+    res.push(now.elapsed() / 100);
+    // }
     println!("Time taken: {:?}", res);
 
     // for i in 0..20 {

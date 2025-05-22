@@ -1,35 +1,88 @@
-use std::sync::Arc;
-
-use crate::utils::{
+use crate::{
+    microkernel_trait::MatmulMicroKernel,
+    template::{matmul_mp, matmul_mp_post},
+    utils::kernel_params,
+    vec_size,
+    Pointer,
     PrePackedRhs,
-    prepack_b_mp_single_thread,
-    prepack_b_single_thread,
-    prepack_lhs,
-    prepack_lhs_mp,
+    Zero,
+    ALIGN,
 };
-use crate::{ Pointer, Zero, microkernel_trait::MatmulMicroKernel, utils::kernel_params, vec_size };
-use gemm_common::cache::DivCeil;
-use num_integer::Integer;
-use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 
-pub(crate) fn _matmul<T, F1, F2>(
-    n: usize,
+pub(crate) fn matmul_template_no_block_info<T, TVec>(
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
     m: usize,
+    n: usize,
     k: usize,
-    lhs_ptr: (*const T, i64),
     lhs_strides: [i64; 2],
-    rhs_ptr: (*const T, i64),
     rhs_strides: [i64; 2],
-    res_ptr: (*mut T, i64),
-    res_strides: [i64; 2],
+    out_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<PrePackedRhs>>,
-    has_post_op: bool,
+    prepacked_rhs: Option<&PrePackedRhs>
+)
+    where T: Zero + MatmulMicroKernel + Send + Sync + Copy
+{
+    let (nr, mr) = (T::get_max_nr() * vec_size::<T>(), T::get_max_mr());
+    #[cfg(not(target_feature = "neon"))]
+    let mut do_lhs_pack = false;
+    #[cfg(target_feature = "neon")]
+    let mut do_lhs_pack = true;
+
+    let lhs_col_stride = lhs_strides[1];
+    if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
+        do_lhs_pack = true;
+    }
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    if param.nc == 0 {
+        param.nc = n.next_multiple_of(nr);
+    }
+    if param.mc == 0 {
+        param.mc = m.next_multiple_of(mr);
+    }
+    super::template::matmul::<T, _, _>(
+        Pointer::new(a.0 as *mut T, a.1),
+        Pointer::new(b.0 as *mut T, b.1),
+        Pointer::new(out.0 as *mut T, out.1),
+        m,
+        n,
+        k,
+        lhs_strides[0],
+        rhs_strides[0],
+        out_strides[0],
+        lhs_strides[1],
+        rhs_strides[1],
+        param.kc,
+        param.mc,
+        param.nc,
+        nr,
+        mr,
+        do_lhs_pack,
+        num_threads,
+        prepacked_rhs,
+        |_, _, _| unreachable!(),
+        |_, _, _| unreachable!()
+    );
+}
+
+pub(crate) fn matmul_post_op_template_no_block_info<T, F1, F2>(
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
+    m: usize,
+    n: usize,
+    k: usize,
+    lhs_strides: [i64; 2],
+    rhs_strides: [i64; 2],
+    out_strides: [i64; 2],
+    num_threads: usize,
+    prepacked_rhs: Option<&PrePackedRhs>,
     post_op: F1,
-    post_op_vec: F2
+    post_vec_op: F2
 )
     where
-        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
+        T: Zero + MatmulMicroKernel + Send + Sync + Copy,
         F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
         F2: Fn(
             <T as MatmulMicroKernel>::SelfVec,
@@ -41,231 +94,60 @@ pub(crate) fn _matmul<T, F1, F2>(
             Sync +
             'static
 {
-    let matmul_fn = if has_post_op {
-        crate::template::matmul_post::<T, F1, F2>
-    } else {
-        crate::template::matmul::<T, F1, F2>
-    };
-    let lhs_ptr = Pointer::new(lhs_ptr.0 as *mut T, lhs_ptr.1);
-    let rhs_ptr = Pointer::new(rhs_ptr.0 as *mut T, rhs_ptr.1);
-    let res_ptr = Pointer::new(res_ptr.0 as *mut T, res_ptr.1);
-    let nr = <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>();
-    let mr = <T as MatmulMicroKernel>::get_max_mr();
+    let (nr, mr) = (T::get_max_nr() * vec_size::<T>(), T::get_max_mr());
     #[cfg(not(target_feature = "neon"))]
     let mut do_lhs_pack = false;
     #[cfg(target_feature = "neon")]
     let mut do_lhs_pack = true;
 
-    if (lhs_strides[1] == 1 && n > 128 * nr) || lhs_strides[1] != 1 {
+    let lhs_col_stride = lhs_strides[1];
+    if (lhs_col_stride == 1 && n > 128 * nr) || lhs_col_stride != 1 {
         do_lhs_pack = true;
     }
-    let mut params = kernel_params(n, m, k, nr, mr, size_of::<T>());
-    if params.nc == 0 {
-        params.nc = n.msrv_next_multiple_of(nr);
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    if param.nc == 0 {
+        param.nc = n.next_multiple_of(nr);
     }
-    if params.mc == 0 {
-        params.mc = m.msrv_next_multiple_of(mr);
+    if param.mc == 0 {
+        param.mc = m.next_multiple_of(mr);
     }
-    let mut kc = params.kc;
-    let mut mc = params.mc;
-    let mut nc = params.nc;
-    if let Some(prepacked_rhs) = &prepacked_rhs {
-        let prepacked_rhs = prepacked_rhs.as_ref();
-        kc = prepacked_rhs.kc;
-    }
-
-    if n >= m {
-        let func = |nc: usize| {
-            let num_nc = n.div_ceil(nc);
-            let lda = lhs_strides[0];
-            let lhs_col_stride = lhs_strides[1];
-            let prepacked_lhs = if do_lhs_pack {
-                let res =
-                    prepack_lhs(
-                        #[cfg(feature = "bound_check")] (lhs_ptr.ptr, lhs_ptr.len),
-                        #[cfg(not(feature = "bound_check"))] lhs_ptr.ptr,
-                        lhs_strides,
-                        mr,
-                        mc,
-                        kc,
-                        k,
-                        m
-                    );
-                mc = res.mc;
-                Some(res)
-            } else {
-                None
-            };
-            let execute = move |i: usize| {
-                let start = i * nc;
-                let end = (start + nc).min(n);
-                let rhs_ptr = rhs_ptr + (start as i64) * (rhs_strides[1] as i64);
-                let res_ptr = res_ptr + (start as i64) * (res_strides[1] as i64);
-                let lhs_ptr = lhs_ptr;
-                let sliced_m = m as i64;
-                let sliced_k = k as i64;
-                let sliced_n = end - start;
-                let sliced_ldb = rhs_strides[0];
-                let sliced_ldc = res_strides[0];
-                let sliced_rhs_col_stride = rhs_strides[1];
-                matmul_fn(
-                    lhs_ptr,
-                    rhs_ptr,
-                    res_ptr,
-                    0,
-                    start,
-                    sliced_m as usize,
-                    sliced_n as usize,
-                    sliced_k as usize,
-                    lda,
-                    sliced_ldb,
-                    sliced_ldc,
-                    lhs_col_stride,
-                    sliced_rhs_col_stride,
-                    kc,
-                    mc,
-                    nc,
-                    nr,
-                    mr,
-                    do_lhs_pack,
-                    prepacked_lhs.as_ref(),
-                    prepacked_rhs.as_ref().map(|v| &**v),
-                    post_op.clone(),
-                    post_op_vec.clone()
-                );
-            };
-            if num_threads == 1 {
-                for i in 0..num_nc {
-                    execute(i);
-                }
-            } else {
-                (0..num_nc).into_par_iter().for_each(move |i| {
-                    execute(i);
-                });
-            }
-        };
-        let num_nc = n.div_ceil(nc);
-        if num_nc >= num_threads {
-            func(nc);
-        } else {
-            while nc != 0 && n.div_ceil(nc) < num_threads {
-                nc = (nc - 1).prev_multiple_of(&nr);
-            }
-            if nc == 0 {
-                func(params.nc);
-            } else {
-                func(nc);
-            }
-        }
-    } else {
-        let holder;
-        let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-            &prepacked_rhs
-        } else {
-            let (ptrs, packed_b, layout) = prepack_b_single_thread::<T>(
-                rhs_ptr,
-                n,
-                k,
-                rhs_strides[0],
-                rhs_strides[1],
-                kc,
-                nc,
-                nr,
-                true
-            );
-            let prepacked_rhs = PrePackedRhs {
-                buffers: ptrs,
-                buffer: (packed_b, layout),
-                nr,
-                nc,
-                kc,
-            };
-            holder = prepacked_rhs;
-            &holder
-        };
-        let func = |mc: usize| {
-            let num_mc = m.div_ceil(mc);
-            let execute = move |i: usize| {
-                let start = i * mc;
-                let end = (start + mc).min(m);
-                let rhs_ptr = rhs_ptr;
-                let res_ptr = res_ptr + (start as i64) * (res_strides[0] as i64);
-                let lhs_ptr = lhs_ptr + (start as i64) * (lhs_strides[0] as i64);
-                let sliced_m = end - start;
-                let sliced_k = k as i64;
-                let sliced_n = n as i64;
-                let sliced_lda = lhs_strides[0];
-                let sliced_ldb = rhs_strides[0];
-                let sliced_ldc = res_strides[0];
-                let sliced_lhs_col_stride = lhs_strides[1];
-                let sliced_rhs_col_stride = rhs_strides[1];
-                matmul_fn(
-                    lhs_ptr,
-                    rhs_ptr,
-                    res_ptr,
-                    start,
-                    0,
-                    sliced_m as usize,
-                    sliced_n as usize,
-                    sliced_k as usize,
-                    sliced_lda,
-                    sliced_ldb,
-                    sliced_ldc,
-                    sliced_lhs_col_stride,
-                    sliced_rhs_col_stride,
-                    kc,
-                    mc,
-                    nc,
-                    nr,
-                    mr,
-                    do_lhs_pack,
-                    None,
-                    Some(prepacked_rhs),
-                    post_op.clone(),
-                    post_op_vec.clone()
-                );
-            };
-            if num_threads == 1 {
-                for i in 0..num_mc {
-                    execute(i);
-                }
-            } else {
-                (0..num_mc).into_iter().for_each(move |i| {
-                    execute(i);
-                });
-            }
-        };
-        let num_mc = m.div_ceil(params.mc);
-        if num_mc >= num_threads {
-            func(params.mc);
-        } else {
-            while mc != 0 && m.div_ceil(mc) < num_threads {
-                mc = (mc - 1).prev_multiple_of(&mr);
-            }
-            if mc == 0 {
-                func(params.mc);
-            } else {
-                func(mc);
-            }
-        }
-    }
+    super::template::matmul_post::<T, _, _>(
+        Pointer::new(a.0 as *mut T, a.1),
+        Pointer::new(b.0 as *mut T, b.1),
+        Pointer::new(out.0 as *mut T, out.1),
+        m,
+        n,
+        k,
+        lhs_strides[0],
+        rhs_strides[0],
+        out_strides[0],
+        lhs_strides[1],
+        rhs_strides[1],
+        param.kc,
+        param.mc,
+        param.nc,
+        nr,
+        mr,
+        do_lhs_pack,
+        num_threads,
+        prepacked_rhs,
+        post_op,
+        post_vec_op
+    );
 }
 
-pub(crate) fn _matmul_mp<T, F1, F2>(
-    n: usize,
+#[inline(always)]
+pub fn matmul_mp_template_no_block_info<T>(
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
     m: usize,
+    n: usize,
     k: usize,
-    lhs_ptr: (*const T, i64),
     lhs_strides: [i64; 2],
-    rhs_ptr: (*const T, i64),
     rhs_strides: [i64; 2],
-    res_ptr: (*mut T, i64),
-    res_strides: [i64; 2],
+    out_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<PrePackedRhs>>,
-    has_post_op: bool,
-    post_op: F1,
-    post_op_vec: F2,
     pack_vec: fn(
         *mut <T as MatmulMicroKernel>::MixedVec,
         *const <T as MatmulMicroKernel>::SelfVec,
@@ -280,8 +162,77 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
     cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType)
 )
     where
-        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
-        <T as MatmulMicroKernel>::MixedType: Copy + Zero,
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        <T as MatmulMicroKernel>::MixedType: Send + Sync + Copy + Zero
+{
+    let nr = T::get_max_mixed_precision_nr() * vec_size::<T>();
+    let mr = T::get_max_mixed_precision_mr();
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    if param.mc == 0 {
+        param.mc = m.next_multiple_of(mr);
+    }
+    if param.nc == 0 {
+        param.nc = m.next_multiple_of(nr);
+    }
+    matmul_mp::<T, _, _>(
+        Pointer::new(a.0 as *mut T, a.1),
+        Pointer::new(b.0 as *mut T, b.1),
+        Pointer::new(out.0 as *mut T, out.1),
+        m,
+        n,
+        k,
+        lhs_strides[0],
+        rhs_strides[0],
+        out_strides[0],
+        lhs_strides[1],
+        rhs_strides[1],
+        param.kc,
+        param.mc,
+        param.nc,
+        nr,
+        mr,
+        num_threads,
+        None,
+        |_, _, _| unreachable!(),
+        |_, _, _| unreachable!(),
+        pack_vec,
+        pack_vec_exceed,
+        pack_zero,
+        vec_cast_back,
+        cast_back
+    );
+}
+
+#[inline(always)]
+pub fn matmul_post_op_mp_template_no_block_info<T, F1, F2>(
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
+    m: usize,
+    n: usize,
+    k: usize,
+    lhs_strides: [i64; 2],
+    rhs_strides: [i64; 2],
+    out_strides: [i64; 2],
+    num_threads: usize,
+    pack_vec: fn(
+        *mut <T as MatmulMicroKernel>::MixedVec,
+        *const <T as MatmulMicroKernel>::SelfVec,
+        usize
+    ),
+    pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
+    pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
+    vec_cast_back: fn(
+        *mut <T as MatmulMicroKernel>::SelfVec,
+        *const <T as MatmulMicroKernel>::MixedVec
+    ),
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType),
+    post_op: F1,
+    post_vec_op: F2
+)
+    where
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        <T as MatmulMicroKernel>::MixedType: Send + Sync + Copy + Zero,
         F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
         F2: Fn(
             <T as MatmulMicroKernel>::SelfVec,
@@ -293,238 +244,65 @@ pub(crate) fn _matmul_mp<T, F1, F2>(
             Sync +
             'static
 {
-    let matmul_fn = if has_post_op {
-        crate::template::matmul_post_mp_sg::<T, F1, F2>
-    } else {
-        crate::template::matmul_mp_sg::<T, F1, F2>
-    };
-    let lhs_ptr = Pointer::new(lhs_ptr.0 as *mut T, lhs_ptr.1);
-    let rhs_ptr = Pointer::new(rhs_ptr.0 as *mut T, rhs_ptr.1);
-    let res_ptr = Pointer::new(res_ptr.0 as *mut T, res_ptr.1);
-    let nr = <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>();
-    let mr = <T as MatmulMicroKernel>::get_max_mr();
-    let do_lhs_pack = true;
-    let mut params = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
-    if params.nc == 0 {
-        params.nc = n.next_multiple_of(nr);
+    let nr = T::get_max_mixed_precision_nr() * vec_size::<T>();
+    let mr = T::get_max_mixed_precision_mr();
+    let mut param = kernel_params(n, m, k, nr, mr, std::mem::size_of::<T>());
+    if param.mc == 0 {
+        param.mc = m.next_multiple_of(mr);
     }
-    if params.mc == 0 {
-        params.mc = m.next_multiple_of(mr);
+    if param.nc == 0 {
+        param.nc = m.next_multiple_of(nr);
     }
-    let mut mc = params.mc;
-    let mut nc = params.nc;
-    let mut kc = params.kc;
-    if let Some(prepacked_rhs) = &prepacked_rhs {
-        let prepacked_rhs = prepacked_rhs.as_ref();
-        kc = prepacked_rhs.kc;
-    }
-
-    if n >= m {
-        let func = |nc: usize| {
-            let num_nc = n.div_ceil(nc);
-            let lda = lhs_strides[0];
-            let lhs_col_stride = lhs_strides[1];
-            let prepacked_lhs = prepack_lhs_mp(
-                #[cfg(feature = "bound_check")] (lhs_ptr.ptr, lhs_ptr.len),
-                #[cfg(not(feature = "bound_check"))] lhs_ptr.ptr,
-                lhs_strides,
-                mr,
-                mc,
-                kc,
-                k,
-                m,
-                pack_zero
-            );
-            let execute = move |i: usize| {
-                let start = i * nc;
-                let end = (start + nc).min(n);
-                let rhs_ptr = rhs_ptr + (start as i64) * (rhs_strides[1] as i64);
-                let res_ptr = res_ptr + (start as i64) * (res_strides[1] as i64);
-                let lhs_ptr = lhs_ptr;
-                let sliced_m = m as i64;
-                let sliced_k = k as i64;
-                let sliced_n = end - start;
-                let sliced_ldb = rhs_strides[0];
-                let sliced_ldc = res_strides[0];
-                let sliced_rhs_col_stride = rhs_strides[1];
-                matmul_fn(
-                    lhs_ptr,
-                    rhs_ptr,
-                    res_ptr,
-                    0,
-                    start,
-                    sliced_m as usize,
-                    sliced_n as usize,
-                    sliced_k as usize,
-                    lda,
-                    sliced_ldb,
-                    sliced_ldc,
-                    lhs_col_stride,
-                    sliced_rhs_col_stride,
-                    kc,
-                    mc,
-                    nc,
-                    nr,
-                    mr,
-                    do_lhs_pack,
-                    Some(&prepacked_lhs),
-                    prepacked_rhs.as_ref().map(|v| &**v),
-                    post_op.clone(),
-                    post_op_vec.clone(),
-                    pack_vec,
-                    pack_vec_exceed,
-                    pack_zero,
-                    vec_cast_back,
-                    cast_back
-                );
-            };
-            if num_threads == 1 {
-                for i in 0..num_nc {
-                    execute(i);
-                }
-            } else {
-                (0..num_nc).into_par_iter().for_each(move |i| {
-                    execute(i);
-                });
-            }
-        };
-        let num_nc = n.div_ceil(nc);
-        if num_nc >= num_threads {
-            func(nc);
-        } else {
-            while nc != 0 && n.div_ceil(nc) < num_threads {
-                nc = (nc - 1).prev_multiple_of(&nr);
-            }
-            if nc == 0 {
-                func(params.nc);
-            } else {
-                func(nc);
-            }
-        }
-    } else {
-        let func = |mc: usize| {
-            let num_mc = m.div_ceil(mc);
-            let holder;
-            let prepacked_rhs = if let Some(prepacked_rhs) = &prepacked_rhs {
-                &prepacked_rhs
-            } else {
-                let (ptrs, packed_b, layout) = prepack_b_mp_single_thread::<T>(
-                    rhs_ptr,
-                    n,
-                    k,
-                    rhs_strides[0],
-                    rhs_strides[1],
-                    kc,
-                    n,
-                    nr,
-                    true,
-                    pack_vec,
-                    pack_vec_exceed,
-                    pack_zero
-                );
-                let prepacked_rhs = PrePackedRhs {
-                    buffers: ptrs,
-                    buffer: (packed_b, layout),
-                    nr,
-                    nc,
-                    kc,
-                };
-                holder = prepacked_rhs;
-                &holder
-            };
-            let execute = move |i: usize| {
-                let start = i * mc;
-                let end = (start + mc).min(m);
-                let rhs_ptr = rhs_ptr;
-                let res_ptr = res_ptr + (start as i64) * (res_strides[0] as i64);
-                let lhs_ptr = lhs_ptr + (start as i64) * (lhs_strides[0] as i64);
-                let sliced_m = end - start;
-                let sliced_k = k as i64;
-                let sliced_n = n as i64;
-                let sliced_lda = lhs_strides[0];
-                let sliced_ldb = rhs_strides[0];
-                let sliced_ldc = res_strides[0];
-                let sliced_lhs_col_stride = lhs_strides[1];
-                let sliced_rhs_col_stride = rhs_strides[1];
-                matmul_fn(
-                    lhs_ptr,
-                    rhs_ptr,
-                    res_ptr,
-                    start,
-                    0,
-                    sliced_m as usize,
-                    sliced_n as usize,
-                    sliced_k as usize,
-                    sliced_lda,
-                    sliced_ldb,
-                    sliced_ldc,
-                    sliced_lhs_col_stride,
-                    sliced_rhs_col_stride,
-                    kc,
-                    mc,
-                    nc,
-                    nr,
-                    mr,
-                    do_lhs_pack,
-                    None,
-                    Some(&prepacked_rhs),
-                    post_op.clone(),
-                    post_op_vec.clone(),
-                    pack_vec,
-                    pack_vec_exceed,
-                    pack_zero,
-                    vec_cast_back,
-                    cast_back
-                );
-            };
-            if num_threads == 1 {
-                for i in 0..num_mc {
-                    execute(i);
-                }
-            } else {
-                (0..num_mc).into_par_iter().for_each(move |i| {
-                    execute(i);
-                });
-            }
-        };
-        let num_mc = m.div_ceil(params.mc);
-        if num_mc >= num_threads {
-            func(params.mc);
-        } else {
-            while mc != 0 && m.div_ceil(mc) < num_threads {
-                mc = (mc - 1).prev_multiple_of(&mr);
-            }
-            if mc == 0 {
-                func(params.mc);
-            } else {
-                func(mc);
-            }
-        }
-    }
+    matmul_mp_post::<T, _, _>(
+        Pointer::new(a.0 as *mut T, a.1),
+        Pointer::new(b.0 as *mut T, b.1),
+        Pointer::new(out.0 as *mut T, out.1),
+        m,
+        n,
+        k,
+        lhs_strides[0],
+        rhs_strides[0],
+        out_strides[0],
+        lhs_strides[1],
+        rhs_strides[1],
+        param.kc,
+        param.mc,
+        param.nc,
+        nr,
+        mr,
+        num_threads,
+        None,
+        post_op,
+        post_vec_op,
+        pack_vec,
+        pack_vec_exceed,
+        pack_zero,
+        vec_cast_back,
+        cast_back
+    );
 }
 
 pub fn matmul<T: 'static>(
-    (lhs_ptr, lhs_len): (*const T, i64),
-    (rhs_ptr, rhs_len): (*const T, i64),
-    (res_ptr, res_len): (*mut T, i64),
-    n: usize,
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
     m: usize,
+    n: usize,
     k: usize,
     lhs_strides: [i64; 2],
     rhs_strides: [i64; 2],
-    res_strides: [i64; 2],
+    out_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<PrePackedRhs>>,
-    post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static)>,
-    post_op_vec: Option<
+    prepacked_rhs: Option<&PrePackedRhs>,
+    post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync)>,
+    post_vec_op: Option<
         &(dyn (Fn(
             <T as MatmulMicroKernel>::SelfVec,
             usize,
             usize
         ) -> <T as MatmulMicroKernel>::SelfVec) +
             Send +
-            Sync +
-            'static)
+            Sync)
     >
 )
     where T: MatmulMicroKernel
@@ -532,47 +310,39 @@ pub fn matmul<T: 'static>(
     macro_rules! case {
         ($dtype:ty, $vec:ty) => {
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
-                match (post_op, post_op_vec) {
-                    (Some(post_op), Some(post_op_vec)) => {
-                        let post_op: &(
-                             dyn (Fn($dtype, usize, usize) -> $dtype) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op) };
-                        let post_op_vec: &(
-                             dyn (Fn($vec, usize, usize) -> $vec) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op_vec) };
-                        _matmul::<$dtype, _, _>(
-                            n,
+                match (post_op, post_vec_op) {
+                    (Some(post_op), Some(post_vec_op)) => {
+                        let post_op: &(dyn Fn($dtype, usize, usize) -> $dtype + Send + Sync) = unsafe { std::mem::transmute(post_op) };
+                        let post_vec_op: &(dyn Fn($vec, usize, usize) -> $vec + Send + Sync) = unsafe { std::mem::transmute(post_vec_op) };
+                        matmul_post_op_template_no_block_info::<$dtype, _, _>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const $dtype, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const $dtype, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut $dtype, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
                             prepacked_rhs,
-                            true,
                             post_op,
-                            post_op_vec,
+                            post_vec_op
                         );
                     }
                     _ => {
-                        _matmul::<$dtype, _, _>(
-                            n,
+                        matmul_template_no_block_info::<$dtype, $vec>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const $dtype, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const $dtype, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut $dtype, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
                             prepacked_rhs,
-                            false,
-                            |_, _, _| unreachable!(),
-                            |_, _, _| unreachable!(),
                         );
                     }
                 }
@@ -609,138 +379,85 @@ pub fn matmul<T: 'static>(
 
     #[cfg(any(feature = "f16", feature = "bf16"))]
     macro_rules! f16_case {
-        ($dtype:ty, $vec:ty, $im:ty, $im_vec:ty) => {
+        ($dtype:ty, $vec:ty) => {
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
-                type T = $dtype;
-                type Vec = $vec;
-                type IM = $im;
-                type IMVec = $im_vec;
                 use crate::VecTrait;
-                fn pack_vec(packed_b: *mut IMVec, b: *const Vec, i: usize) {
-                    let packed_b = packed_b as *mut IMVec;
-                    let b = b as *const Vec;
-                    unsafe {
+                matmul_mp_template_no_block_info::<$dtype>(
+                    (a.0 as *const $dtype, a.1),
+                    (b.0 as *const $dtype, b.1),
+                    (out.0 as *mut $dtype, out.1),
+                    m,
+                    n,
+                    k,
+                    lhs_strides,
+                    rhs_strides,
+                    out_strides,
+                    num_threads,
+                    |packed_b, b, i| unsafe {
+                        let packed_b = packed_b as *mut crate::F32Vec;
+                        let b = b as *const crate::F16Vec;
                         let packed_b_vec0 = packed_b.add(i * 2);
                         let packed_b_vec1 = packed_b.add(i * 2 + 1);
                         let b_vec = b.add(i).read_unaligned();
                         let val_f32 = b_vec.to_2_f32vec();
                         packed_b_vec0.write(val_f32[0]);
                         packed_b_vec1.write(val_f32[1]);
-                    }
-                }
-                fn pack_vec_exceed(packed_b: *mut IMVec, i: usize) {
-                    unsafe {
-                        let packed_b = packed_b as *mut IMVec;
+                    },
+                    |packed_b, i| unsafe {
+                        let packed_b = packed_b as *mut crate::F32Vec;
                         let packed_b_vec0 = packed_b.add(i * 2);
                         let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                        packed_b_vec0.write(IMVec::splat(0.0));
-                        packed_b_vec1.write(IMVec::splat(0.0));
-                    }
-                }
-                fn pack_zero(im: &mut IM, val: &T) {
-                    let val = val as *const T;
-                    *im = unsafe { val.read().to_f32() };
-                }
-                fn vec_cast_back(im: *mut Vec, val: *const IMVec) {
-                    let im = im as *mut Vec;
-                    let val = val as *const IMVec;
-                    let vec0 = unsafe { val.read() };
-                    let vec1 = unsafe { val.add(1).read() };
-                    unsafe { im.write_unaligned(Vec::from_2_f32vec([vec0, vec1])) };
-                }
-                fn cast_back(im: &mut T, val: &IM) {
-                    let im = im as *mut T;
-                    unsafe { *im = <T>::from_f32(*val) };
-                }
-
-                match (post_op, post_op_vec) {
-                    (Some(post_op), Some(post_op_vec)) => {
-                        let post_op: &(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static) =
-                            unsafe { std::mem::transmute(post_op) };
-                        let post_op_vec: &(
-                             dyn (Fn(Vec, usize, usize) -> Vec) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op_vec) };
-                        _matmul_mp::<T, _, _>(
-                            n,
-                            m,
-                            k,
-                            (lhs_ptr as *const T, lhs_len),
-                            lhs_strides,
-                            (rhs_ptr as *const T, rhs_len),
-                            rhs_strides,
-                            (res_ptr as *mut T, res_len),
-                            res_strides,
-                            num_threads,
-                            prepacked_rhs,
-                            true,
-                            post_op,
-                            post_op_vec,
-                            pack_vec,
-                            pack_vec_exceed,
-                            pack_zero,
-                            vec_cast_back,
-                            cast_back,
-                        );
-                    }
-                    _ => {
-                        _matmul_mp::<T, _, _>(
-                            n,
-                            m,
-                            k,
-                            (lhs_ptr as *const T, lhs_len),
-                            lhs_strides,
-                            (rhs_ptr as *const T, rhs_len),
-                            rhs_strides,
-                            (res_ptr as *mut T, res_len),
-                            res_strides,
-                            num_threads,
-                            prepacked_rhs,
-                            false,
-                            |_, _, _| unreachable!(),
-                            |_, _, _| unreachable!(),
-                            pack_vec,
-                            pack_vec_exceed,
-                            pack_zero,
-                            vec_cast_back,
-                            cast_back,
-                        );
-                    }
-                }
-                return;
+                        packed_b_vec0.write(crate::F32Vec::splat(0.0));
+                        packed_b_vec1.write(crate::F32Vec::splat(0.0));
+                    },
+                    |im, val| {
+                        let val = val as *const $dtype;
+                        *im = unsafe { val.read().to_f32() };
+                    },
+                    |im, val| {
+                        let im = im as *mut crate::F16Vec;
+                        let val = val as *const crate::F32Vec;
+                        let vec0 = unsafe { val.read() };
+                        let vec1 = unsafe { val.add(1).read() };
+                        unsafe { im.write_unaligned(crate::F16Vec::from_2_f32vec([vec0, vec1])) };
+                    },
+                    |im, val| {
+                        let im = im as *mut $dtype;
+                        unsafe { *im = <$dtype>::from_f32(*val) };
+                    },
+                );
             }
         };
     }
-
     #[cfg(feature = "f16")]
-    f16_case!(half::f16, crate::F16Vec, f32, crate::F32Vec);
+    f16_case!(half::f16, crate::F16Vec);
     #[cfg(feature = "bf16")]
-    f16_case!(half::bf16, crate::Bf16Vec, f32, crate::F32Vec);
+    f16_case!(half::bf16, crate::Bf16Vec);
 }
 
 pub fn addmm<T: 'static>(
-    (lhs_ptr, lhs_len): (*const T, i64),
-    (rhs_ptr, rhs_len): (*const T, i64),
-    (res_ptr, res_len): (*mut T, i64),
-    (bias_ptr, bias_len): (*const T, i64),
-    n: usize,
+    a: (*const T, i64),
+    b: (*const T, i64),
+    out: (*mut T, i64),
+    bias: (*const T, i64),
     m: usize,
+    n: usize,
     k: usize,
     lhs_strides: [i64; 2],
     rhs_strides: [i64; 2],
-    res_strides: [i64; 2],
+    out_strides: [i64; 2],
     bias_strides: [i64; 2],
     num_threads: usize,
-    prepacked_rhs: Option<Arc<PrePackedRhs>>,
-    post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static)>,
-    post_op_vec: Option<
+    prepacked_rhs: Option<&PrePackedRhs>,
+    post_op: Option<&(dyn (Fn(T, usize, usize) -> T) + Send + Sync)>,
+    post_vec_op: Option<
         &(dyn (Fn(
             <T as MatmulMicroKernel>::SelfVec,
             usize,
             usize
         ) -> <T as MatmulMicroKernel>::SelfVec) +
             Send +
-            Sync +
-            'static)
+            Sync)
     >
 )
     where T: MatmulMicroKernel
@@ -748,72 +465,54 @@ pub fn addmm<T: 'static>(
     macro_rules! case {
         ($dtype:ty, $vec:ty) => {
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
-                let bias_ptr = Pointer::new(bias_ptr as *mut $dtype, bias_len);
-                match (post_op, post_op_vec) {
-                    (Some(post_op), Some(post_op_vec)) => {
-                        let post_op: &(
-                             dyn (Fn($dtype, usize, usize) -> $dtype) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op) };
-                        let post_op_vec: &(
-                             dyn (Fn($vec, usize, usize) -> $vec) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op_vec) };
-                        _matmul::<$dtype, _, _>(
-                            n,
+                let bias_ptr = Pointer::new(bias.0 as *mut $dtype, bias.1);
+                match (post_op, post_vec_op) {
+                    (Some(post_op), Some(post_vec_op)) => {
+                        let post_op: &(dyn Fn($dtype, usize, usize) -> $dtype + Send + Sync) = unsafe { std::mem::transmute(post_op) };
+                        let post_vec_op: &(dyn Fn($vec, usize, usize) -> $vec + Send + Sync) = unsafe { std::mem::transmute(post_vec_op) };
+                        matmul_post_op_template_no_block_info::<$dtype, _, _>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const $dtype, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const $dtype, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut $dtype, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
                             prepacked_rhs,
-                            true,
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr[offset];
-                                post_op(x.add(bias), m, n)
+                            move |res, m, n| {
+                                let bias = bias_ptr[m as i64 * bias_strides[0] + n as i64 * bias_strides[1]];
+                                post_op(res + bias, m, n)
                             },
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr.offset(offset).cast::<$vec>().read_unaligned();
-                                post_op_vec(x.add(bias), m, n)
-                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr.offset(m as i64 * bias_strides[0] + n as i64 * bias_strides[1]);
+                                post_vec_op(res + bias.cast::<$vec>().read_unaligned(), m, n)
+                            }
                         );
                     }
                     _ => {
-                        _matmul::<$dtype, _, _>(
-                            n,
+                        matmul_post_op_template_no_block_info::<$dtype, _, _>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const $dtype, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const $dtype, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut $dtype, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
                             prepacked_rhs,
-                            true,
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr[offset];
-                                x.add(bias)
+                            move |res, m, n| {
+                                let bias = bias_ptr[m as i64 * bias_strides[0] + n as i64 * bias_strides[1]];
+                                res + bias
                             },
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr.offset(offset).cast::<$vec>().read_unaligned();
-                                x.add(bias)
-                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr.offset(m as i64 * bias_strides[0] + n as i64 * bias_strides[1]);
+                                res + bias.cast::<$vec>().read_unaligned()
+                            }
                         );
                     }
                 }
@@ -850,293 +549,171 @@ pub fn addmm<T: 'static>(
 
     #[cfg(any(feature = "f16", feature = "bf16"))]
     macro_rules! f16_case {
-        ($dtype:ty, $vec:ty, $im:ty, $im_vec:ty) => {
+        ($dtype:ty, $vec:ty) => {
             if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
-                type T = $dtype;
-                type Vec = $vec;
-                type IM = $im;
-                type IMVec = $im_vec;
                 use crate::VecTrait;
-                let bias_ptr = Pointer::new(bias_ptr as *mut T, bias_len);
-                fn pack_vec(packed_b: *mut IMVec, b: *const Vec, i: usize) {
-                    let packed_b = packed_b as *mut IMVec;
-                    let b = b as *const Vec;
-                    unsafe {
-                        let packed_b_vec0 = packed_b.add(i * 2);
-                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                        let b_vec = b.add(i).read_unaligned();
-                        let val_f32 = b_vec.to_2_f32vec();
-                        packed_b_vec0.write(val_f32[0]);
-                        packed_b_vec1.write(val_f32[1]);
-                    }
-                }
-                fn pack_vec_exceed(packed_b: *mut IMVec, i: usize) {
-                    unsafe {
-                        let packed_b = packed_b as *mut IMVec;
-                        let packed_b_vec0 = packed_b.add(i * 2);
-                        let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                        packed_b_vec0.write(IMVec::splat(0.0));
-                        packed_b_vec1.write(IMVec::splat(0.0));
-                    }
-                }
-                fn pack_zero(im: &mut IM, val: &T) {
-                    *im = (*val).to_f32();
-                }
-                fn vec_cast_back(im: *mut Vec, val: *const IMVec) {
-                    let im = im as *mut Vec;
-                    let val = val as *const IMVec;
-                    let vec0 = unsafe { val.read() };
-                    let vec1 = unsafe { val.add(1).read() };
-                    unsafe { im.write_unaligned(Vec::from_2_f32vec([vec0, vec1])) }
-                }
-                fn cast_back(im: &mut T, val: &IM) {
-                    *im = <T>::from_f32(*val);
-                }
-                match (post_op, post_op_vec) {
-                    (Some(post_op), Some(post_op_vec)) => {
-                        let post_op: &(dyn (Fn(T, usize, usize) -> T) + Send + Sync + 'static) =
-                            unsafe { std::mem::transmute(post_op) };
-                        let post_op_vec: &(
-                             dyn (Fn(Vec, usize, usize) -> Vec) + Send + Sync + 'static
-                         ) = unsafe { std::mem::transmute(post_op_vec) };
-                        _matmul_mp::<T, _, _>(
-                            n,
+                let bias_ptr = Pointer::new(bias.0 as *mut $dtype, bias.1);
+                match (post_op, post_vec_op) {
+                    (Some(post_op), Some(post_vec_op)) => {
+                        let post_op: &(dyn Fn($dtype, usize, usize) -> $dtype + Send + Sync) = unsafe { std::mem::transmute(post_op) };
+                        let post_vec_op: &(dyn Fn($vec, usize, usize) -> $vec + Send + Sync) = unsafe { std::mem::transmute(post_vec_op) };
+                        matmul_post_op_mp_template_no_block_info::<$dtype, _, _>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const T, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const T, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut T, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
-                            prepacked_rhs,
-                            true,
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr[offset];
-                                post_op(x.add(bias), m, n)
+                            |packed_b, b, i| unsafe {
+                                let packed_b = packed_b as *mut crate::F32Vec;
+                                let b = b as *const crate::F16Vec;
+                                let packed_b_vec0 = packed_b.add(i * 2);
+                                let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                let b_vec = b.add(i).read_unaligned();
+                                let val_f32 = b_vec.to_2_f32vec();
+                                packed_b_vec0.write(val_f32[0]);
+                                packed_b_vec1.write(val_f32[1]);
                             },
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr.offset(offset).cast::<Vec>().read_unaligned();
-                                post_op_vec(x.add(bias), m, n)
+                            |packed_b, i| unsafe {
+                                let packed_b = packed_b as *mut crate::F32Vec;
+                                let packed_b_vec0 = packed_b.add(i * 2);
+                                let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                packed_b_vec0.write(crate::F32Vec::splat(0.0));
+                                packed_b_vec1.write(crate::F32Vec::splat(0.0));
                             },
-                            pack_vec,
-                            pack_vec_exceed,
-                            pack_zero,
-                            vec_cast_back,
-                            cast_back,
+                            |im, val| {
+                                let val = val as *const $dtype;
+                                *im = unsafe { val.read().to_f32() };
+                            },
+                            |im, val| {
+                                let im = im as *mut crate::F16Vec;
+                                let val = val as *const crate::F32Vec;
+                                let vec0 = unsafe { val.read() };
+                                let vec1 = unsafe { val.add(1).read() };
+                                unsafe { im.write_unaligned(crate::F16Vec::from_2_f32vec([vec0, vec1])) };
+                            },
+                            |im, val| {
+                                let im = im as *mut $dtype;
+                                unsafe { *im = <$dtype>::from_f32(*val) };
+                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr[m as i64 * bias_strides[0] + n as i64 * bias_strides[1]];
+                                post_op(res + bias, m, n)
+                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr.offset(m as i64 * bias_strides[0] + n as i64 * bias_strides[1]);
+                                post_vec_op(res + bias.cast::<$vec>().read_unaligned(), m, n)
+                            }
                         );
-                    }
+                    },
                     _ => {
-                        _matmul_mp::<T, _, _>(
-                            n,
+                        matmul_post_op_mp_template_no_block_info::<$dtype, _, _>(
+                            (a.0 as *const $dtype, a.1),
+                            (b.0 as *const $dtype, b.1),
+                            (out.0 as *mut $dtype, out.1),
                             m,
+                            n,
                             k,
-                            (lhs_ptr as *const T, lhs_len),
                             lhs_strides,
-                            (rhs_ptr as *const T, rhs_len),
                             rhs_strides,
-                            (res_ptr as *mut T, res_len),
-                            res_strides,
+                            out_strides,
                             num_threads,
-                            prepacked_rhs,
-                            true,
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr[offset];
-                                x.add(bias)
+                            |packed_b, b, i| unsafe {
+                                let packed_b = packed_b as *mut crate::F32Vec;
+                                let b = b as *const crate::F16Vec;
+                                let packed_b_vec0 = packed_b.add(i * 2);
+                                let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                let b_vec = b.add(i).read_unaligned();
+                                let val_f32 = b_vec.to_2_f32vec();
+                                packed_b_vec0.write(val_f32[0]);
+                                packed_b_vec1.write(val_f32[1]);
                             },
-                            move |x, m, n| {
-                                use std::ops::Add;
-                                let offset =
-                                    m as i64 * bias_strides[0] + n as i64 * bias_strides[1];
-                                let bias = bias_ptr.offset(offset).cast::<Vec>().read_unaligned();
-                                x.add(bias)
+                            |packed_b, i| unsafe {
+                                let packed_b = packed_b as *mut crate::F32Vec;
+                                let packed_b_vec0 = packed_b.add(i * 2);
+                                let packed_b_vec1 = packed_b.add(i * 2 + 1);
+                                packed_b_vec0.write(crate::F32Vec::splat(0.0));
+                                packed_b_vec1.write(crate::F32Vec::splat(0.0));
                             },
-                            pack_vec,
-                            pack_vec_exceed,
-                            pack_zero,
-                            vec_cast_back,
-                            cast_back,
+                            |im, val| {
+                                let val = val as *const $dtype;
+                                *im = unsafe { val.read().to_f32() };
+                            },
+                            |im, val| {
+                                let im = im as *mut crate::F16Vec;
+                                let val = val as *const crate::F32Vec;
+                                let vec0 = unsafe { val.read() };
+                                let vec1 = unsafe { val.add(1).read() };
+                                unsafe { im.write_unaligned(crate::F16Vec::from_2_f32vec([vec0, vec1])) };
+                            },
+                            |im, val| {
+                                let im = im as *mut $dtype;
+                                unsafe { *im = <$dtype>::from_f32(*val) };
+                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr[m as i64 * bias_strides[0] + n as i64 * bias_strides[1]];
+                                res + bias
+                            },
+                            move |res, m, n| {
+                                let bias = bias_ptr.offset(m as i64 * bias_strides[0] + n as i64 * bias_strides[1]);
+                                res + bias.cast::<$vec>().read_unaligned()
+                            }
                         );
                     }
                 }
-                return;
             }
         };
     }
-
     #[cfg(feature = "f16")]
-    f16_case!(half::f16, crate::F16Vec, f32, crate::F32Vec);
+    f16_case!(half::f16, crate::F16Vec);
     #[cfg(feature = "bf16")]
-    f16_case!(half::bf16, crate::Bf16Vec, f32, crate::F32Vec);
-
-    panic!("Unsupported type: {:?}", std::any::TypeId::of::<T>());
-}
-
-pub(crate) fn prepack_rhs_non_mp<T>(
-    n: usize,
-    k: usize,
-    rhs_ptr: *const T,
-    rhs_strides: [i64; 2]
-) -> PrePackedRhs
-    where T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync
-{
-    let rhs_ptr = Pointer::new(rhs_ptr as *mut T, (n * k) as i64);
-    let nr = <T as MatmulMicroKernel>::get_max_nr() * vec_size::<T>();
-    let mr = <T as MatmulMicroKernel>::get_max_mr();
-    let mut params = kernel_params(n, 0, k, nr, mr, std::mem::size_of::<T>());
-    if params.nc == 0 {
-        params.nc = n.next_multiple_of(nr);
-    }
-    let kc = params.kc;
-    let nc = params.nc;
-
-    let (ptrs, packed_b, layout) = crate::utils::prepack_b_single_thread::<T>(
-        rhs_ptr,
-        n,
-        k,
-        rhs_strides[0],
-        rhs_strides[1],
-        kc,
-        nc,
-        nr,
-        true
-    );
-    let prepacked_rhs = PrePackedRhs {
-        buffers: ptrs,
-        buffer: (packed_b, layout),
-        nr,
-        nc,
-        kc,
-    };
-    prepacked_rhs
-}
-
-pub(crate) fn prepack_rhs_mp<T>(
-    n: usize,
-    k: usize,
-    rhs_ptr: *const T,
-    rhs_strides: [i64; 2],
-    pack_vec: fn(
-        *mut <T as MatmulMicroKernel>::MixedVec,
-        *const <T as MatmulMicroKernel>::SelfVec,
-        usize
-    ),
-    pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
-    pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T)
-)
-    -> PrePackedRhs
-    where
-        T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync,
-        <T as MatmulMicroKernel>::MixedType: Copy + Zero
-{
-    let rhs_ptr = Pointer::new(rhs_ptr as *mut T, (n * k) as i64);
-    let nr = <T as MatmulMicroKernel>::get_max_mixed_precision_nr() * vec_size::<T>();
-    let mr = <T as MatmulMicroKernel>::get_max_mr();
-    let mut params = kernel_params(n, 0, k, nr, mr, std::mem::size_of::<T>());
-    if params.nc == 0 {
-        params.nc = n.next_multiple_of(nr);
-    }
-    let kc = params.kc;
-    let nc = params.nc;
-
-    let (ptrs, packed_b, layout) = crate::utils::prepack_b_mp_single_thread::<T>(
-        rhs_ptr,
-        n,
-        k,
-        rhs_strides[0],
-        rhs_strides[1],
-        kc,
-        nc,
-        nr,
-        true,
-        pack_vec,
-        pack_vec_exceed,
-        pack_zero
-    );
-    let prepacked_rhs = PrePackedRhs {
-        buffers: ptrs,
-        buffer: (packed_b, layout),
-        nr,
-        nc,
-        kc,
-    };
-    prepacked_rhs
+    f16_case!(half::bf16, crate::Bf16Vec);
 }
 
 pub fn prepack_rhs<T>(
+    b: (*const T, i64),
     n: usize,
     k: usize,
-    rhs_ptr: *const T,
-    rhs_strides: [i64; 2]
+    rhs_strides: [i64; 2],
+    parallel: bool
 ) -> PrePackedRhs
-    where T: MatmulMicroKernel + Clone + Copy + 'static + Zero + Send + Sync
+    where T: MatmulMicroKernel + 'static + Send + Sync
 {
-    let is_mp =
-        std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::f16>() ||
-        std::any::TypeId::of::<T>() == std::any::TypeId::of::<half::bf16>();
-    if is_mp {
-        macro_rules! f16_prepack {
-            ($dtype:ty, $vec:ty, $im:ty, $im_vec:ty) => {
-        {
-                if std::any::TypeId::of::<T>() == std::any::TypeId::of::<$dtype>() {
-                    type T = $dtype;
-                    type Vec = $vec;
-                    type IM = $im;
-                    type IMVec = $im_vec;
-                    use crate::VecTrait;
-                    fn pack_vec(packed_b: *mut IMVec, b: *const Vec, i: usize) {
-                        let packed_b = packed_b as *mut IMVec;
-                        let b = b as *const Vec;
-                        unsafe {
-                            let packed_b_vec0 = packed_b.add(i * 2);
-                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                            let b_vec = b.add(i).read_unaligned();
-                            let val_f32 = b_vec.to_2_f32vec();
-                            packed_b_vec0.write(val_f32[0]);
-                            packed_b_vec1.write(val_f32[1]);
-                        }
-                    }
-                    fn pack_vec_exceed(packed_b: *mut IMVec, i: usize) {
-                        unsafe {
-                            let packed_b = packed_b as *mut IMVec;
-                            let packed_b_vec0 = packed_b.add(i * 2);
-                            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-                            packed_b_vec0.write(IMVec::splat(0.0));
-                            packed_b_vec1.write(IMVec::splat(0.0));
-                        }
-                    }
-                    fn pack_zero(im: &mut IM, val: &T) {
-                        *im = (*val).to_f32();
-                    }
-                    return prepack_rhs_mp::<T>(
-                        n,
-                        k,
-                        rhs_ptr as *const T,
-                        rhs_strides,
-                        pack_vec,
-                        pack_vec_exceed,
-                        pack_zero,
-                    );
-                }
-        }
-            };
-        }
-        #[cfg(feature = "f16")]
-        f16_prepack!(half::f16, crate::F16Vec, f32, crate::F32Vec);
-        #[cfg(feature = "bf16")]
-        f16_prepack!(half::bf16, crate::Bf16Vec, f32, crate::F32Vec);
-        panic!("Unsupported type: {:?}", std::any::TypeId::of::<T>());
-    } else {
-        prepack_rhs_non_mp::<T>(n, k, rhs_ptr, rhs_strides)
+    let (nr, mr) = (T::get_max_nr() * vec_size::<T>(), T::get_max_mr());
+
+    let mut param = kernel_params(n, 0, k, nr, mr, std::mem::size_of::<T>());
+    if param.nc == 0 {
+        param.nc = n.next_multiple_of(nr);
+    }
+
+    let mem_size = crate::template::prepack_b_size::<T>(n, k, param.kc, nr);
+
+    let layout = std::alloc::Layout::from_size_align(mem_size, ALIGN).unwrap();
+
+    let raw_buffer = unsafe { std::alloc::alloc(layout) as *mut T };
+
+    let buffer = Pointer::new(raw_buffer, (mem_size / std::mem::size_of::<T>()) as i64);
+
+    crate::template::prepack_b(
+        Pointer::new(b.0 as *mut T, b.1),
+        buffer,
+        n,
+        k,
+        rhs_strides,
+        param.kc,
+        param.nc,
+        nr,
+        parallel
+    );
+
+    PrePackedRhs {
+        buffer: (buffer.cast::<u8>(), layout),
+        kc: param.kc,
+        nr,
+        nc: param.nc,
     }
 }

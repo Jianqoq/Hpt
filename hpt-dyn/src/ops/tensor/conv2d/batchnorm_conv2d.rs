@@ -1,6 +1,5 @@
-use crate::ops::tensor::matmul::microkernel_trait::MatmulMicroKernel;
-use crate::ops::tensor::normalization::batch_norm::batch_norm;
 use crate::Tensor;
+use crate::ops::tensor::normalization::batch_norm::batch_norm;
 
 use super::microkernel_trait::Conv2dMicroKernel;
 use hpt_common::error::base::TensorError;
@@ -25,17 +24,16 @@ pub(crate) fn batchnorm_conv2d<T>(
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
     post_scalar: Option<fn(T) -> T>,
-    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>
-)
-    -> Result<Tensor, TensorError>
-    where
-        T: CommonBounds +
-            Conv2dMicroKernel +
-            MatmulMicroKernel +
-            Cast<<T as NormalOutPromote>::Intermediate> + ToDType,
-        <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
-        T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
-        T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>
+    post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
+) -> Result<Tensor, TensorError>
+where
+    T: CommonBounds
+        + Conv2dMicroKernel
+        + Cast<<T as NormalOutPromote>::Intermediate>
+        + ToDType,
+    <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
+    T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
+    T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,
 {
     let conv_res = input.conv2d(kernels, bias, steps, padding, dilation)?;
 

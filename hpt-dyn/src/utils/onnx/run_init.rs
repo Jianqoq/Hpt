@@ -2,9 +2,9 @@ use std::collections::HashMap;
 
 use hpt_common::error::base::TensorError;
 
-use crate::{ onnx::NodeProto, Tensor };
+use crate::{Tensor, onnx::NodeProto};
 
-use super::operators::{ Operator, TensorFormat };
+use super::operators::{Operator, TensorFormat};
 
 use crate::utils::onnx::init::*;
 
@@ -12,76 +12,36 @@ pub(super) fn run_init(
     nodes: &[NodeProto],
     formats: &mut HashMap<String, TensorFormat>,
     operators: &mut Vec<Operator>,
-    initializer_map: &mut HashMap<String, Tensor>
+    initializer_map: &mut HashMap<String, Tensor>,
 ) -> Result<(), TensorError> {
     for node in nodes.iter() {
         let ops = match node.op_type() {
             "Conv" => conv_init(node, formats),
-            "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" =>
-                pooling_init(node, formats),
-            | "Abs"
-            | "Acos"
-            | "Acosh"
-            | "Asin"
-            | "Asinh"
-            | "Atan"
-            | "Atanh"
-            | "BitwiseNot"
-            | "Ceil"
-            | "Cos"
-            | "Cosh"
-            | "Erf"
-            | "Exp"
-            | "Floor"
-            | "IsInf"
-            | "IsNaN"
-            | "Log"
-            | "Neg"
-            | "Not"
-            | "Reciprocal"
-            | "Round"
-            | "Sigmoid"
-            | "Sign"
-            | "Sin"
-            | "Sinh"
-            | "Sqrt"
-            | "Tan"
-            | "Tanh"
-            | "Gelu"
-            | "HardSigmoid"
-            | "HardSwish"
-            | "LeakyRelu"
-            | "Mish"
-            | "Shrink"
-            | "Relu"
-            | "Softplus"
-            | "Softsign"
-            | "Shape" => vec![unary_init(node, formats)],
-            | "Add"
-            | "Sub"
-            | "Mul"
-            | "Div"
-            | "Mod"
-            | "Pow"
-            | "GreaterOrEqual"
-            | "LessOrEqual"
-            | "Equal"
-            | "Greater"
-            | "Less"
-            | "BitwiseOr"
-            | "BitwiseAnd"
-            | "BitwiseXor" => binary_init(node, formats),
+            "MaxPool" | "GlobalAveragePool" | "GlobalMaxPool" | "AveragePool" => {
+                pooling_init(node, formats)
+            }
+            "Abs" | "Acos" | "Acosh" | "Asin" | "Asinh" | "Atan" | "Atanh" | "BitwiseNot"
+            | "Ceil" | "Cos" | "Cosh" | "Erf" | "Exp" | "Floor" | "IsInf" | "IsNaN" | "Log"
+            | "Neg" | "Not" | "Reciprocal" | "Round" | "Sigmoid" | "Sign" | "Sin" | "Sinh"
+            | "Sqrt" | "Tan" | "Tanh" | "Gelu" | "HardSigmoid" | "HardSwish" | "LeakyRelu"
+            | "Mish" | "Shrink" | "Relu" | "Softplus" | "Softsign" | "Shape" => {
+                vec![unary_init(node, formats)]
+            }
+            "Add" | "Sub" | "Mul" | "Div" | "Mod" | "Pow" | "GreaterOrEqual" | "LessOrEqual"
+            | "Equal" | "Greater" | "Less" | "BitwiseOr" | "BitwiseAnd" | "BitwiseXor" => {
+                binary_init(node, formats)
+            }
             "Gather" => gather_init(node, formats),
             "Constant" => vec![constant_init(node, initializer_map, formats)?],
             "Gemm" => gemm_init(node, formats),
-            "MatMul" => matmul_init(node, formats),
+            "MatMul" => matmul_init(node, formats, initializer_map)?,
             "Unsqueeze" => unsqueeze_init(node, initializer_map, formats),
             "Squeeze" => squeeze_init(node, initializer_map, formats),
             "Concat" => concat_init(node, formats),
             "ConstantOfShape" => const_of_shape_init(node, formats)?,
             "Transpose" => transpose_init(node, formats),
             "Slice" => slice_init(node, formats),
-            "LSTM" => lstm_init(node, formats),
+            "LSTM" => lstm_init(node, formats, initializer_map)?,
             "Identity" => vec![identity_init(node, formats)],
             "Flatten" => flatten_init(node, formats),
             "Selu" => vec![selu_init(node, formats)],

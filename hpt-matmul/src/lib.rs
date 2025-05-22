@@ -232,7 +232,7 @@ pub(crate) const fn vec_size<T>() -> usize {
 
 #[derive(Debug, Clone, Copy)]
 pub struct Pointer<T> {
-    ptr: *mut T,
+    pub ptr: *mut T,
     #[cfg(feature = "bound_check")]
     len: i64,
 }
@@ -414,7 +414,7 @@ pub(crate) trait VecTrait<T> {
     fn mul_add_lane<const LANE: i32>(self, a: Self, b: Self) -> Self;
 }
 
-pub use matmul::{addmm, matmul, prepack_rhs};
+pub use matmul::{matmul, addmm, prepack_rhs};
 
 pub use utils::{PrePackedRhs, kernel_params};
 

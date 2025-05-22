@@ -1,23 +1,27 @@
-use std::sync::Arc;
 
 use hpt_common::{
+    Pointer,
     error::base::TensorError,
     layout::layout::Layout,
-    shape::{ shape::Shape, shape_utils::predict_broadcast_shape },
-    Pointer,
+    shape::{shape::Shape, shape_utils::predict_broadcast_shape},
 };
-use hpt_traits::tensor::{ CommonBounds, TensorInfo };
-use rayon::iter::{ IntoParallelIterator, ParallelIterator };
+use hpt_matmul::PrePackedRhs;
+use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use crate::{ current_num_threads, utils::index_cal::dispatch_map_global_idx, Tensor };
+use crate::{Tensor, current_num_threads, utils::index_cal::dispatch_map_global_idx};
 
+use super::common::{check_out_layout, matmul_prepare};
 #[cfg(feature = "bf16")]
 use super::matmul_mp::bf16_matmul_mp_no_block_info;
 #[cfg(feature = "bf16")]
 use super::matmul_mp_post::bf16_matmul_mp_post_no_block_info;
-use super::common::{ check_out_layout, matmul_prepare };
 
-use hpt_types::{ dtype::{ DType, TypeCommon }, traits::VecTrait, type_promote::NormalOut };
+use hpt_types::{
+    dtype::{DType, TypeCommon},
+    traits::VecTrait,
+    type_promote::NormalOut,
+};
 
 #[cfg(feature = "bf16")]
 use half::bf16;
@@ -27,7 +31,7 @@ use half::f16;
 use hpt_types::into_scalar::Cast;
 
 #[track_caller]
-pub(crate) fn matmul_with_out<T, F1, F2>(
+pub(crate) fn matmul_with_out<T>(
     lhs: Pointer<T>,
     lhs_layout: &Layout,
     rhs: Pointer<T>,
@@ -35,15 +39,12 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
     out: Pointer<T>,
     out_layout: &Layout,
     mut threads: usize,
-    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>,
-    post_op: Option<F1>,
-    post_op_vec: Option<F2>
-)
-    -> std::result::Result<(), TensorError>
-    where
-        T: CommonBounds + hpt_matmul::MatmulMicroKernel,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static
+    prepacked_rhs: Option<&hpt_matmul::PrePackedRhs>,
+    post_op: Option<&(dyn Fn(T, usize, usize) -> T + Send + Sync)>,
+    post_op_vec: Option<&(dyn Fn(T::Vec, usize, usize) -> T::Vec + Send + Sync)>,
+) -> std::result::Result<(), TensorError>
+where
+    T: CommonBounds + hpt_matmul::MatmulMicroKernel,
 {
     threads = threads.min(num_cpus::get_physical());
     let lhs_shape = lhs_layout.shape();
@@ -54,11 +55,11 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
     if lhs_shape.len() == 2 && rhs_shape.len() == 2 {
         check_out_layout(lhs_layout, rhs_layout, out_layout)?;
         let post_op = post_op.map(|f| {
-            let boxed: Box<dyn (Fn(T, usize, usize) -> T) + Send + Sync> = Box::new(f);
+            let boxed: &(dyn (Fn(T, usize, usize) -> T) + Send + Sync) = f;
             unsafe { std::mem::transmute(boxed) }
         });
         let post_op_vec = post_op_vec.map(|f| {
-            let boxed: Box<dyn (Fn(T::Vec, usize, usize) -> T::Vec) + Send + Sync> = Box::new(f);
+            let boxed: &(dyn (Fn(T::Vec, usize, usize) -> T::Vec) + Send + Sync) = f;
             unsafe { std::mem::transmute(boxed) }
         });
         let lhs_ptr = lhs;
@@ -68,8 +69,8 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
             (lhs_ptr.ptr as *const T, lhs_ptr.len()),
             (rhs_ptr.ptr as *const T, rhs_ptr.len()),
             (res_ptr.ptr as *mut T, res_ptr.len()),
-            n,
             m,
+            n,
             k,
             [
                 lhs_layout.strides()[lhs_layout.ndim() - 2],
@@ -84,14 +85,14 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
                 out_layout.strides()[out_layout.ndim() - 1],
             ],
             threads,
-            prepacked_rhs,
+            prepacked_rhs.as_ref().map(|v| &**v),
             post_op,
-            post_op_vec
+            post_op_vec,
         );
         Ok(())
     } else {
         fn extract_batch_and_matrix_dims(
-            layout: &Layout
+            layout: &Layout,
         ) -> Result<(Vec<i64>, i64, i64), TensorError> {
             let shape = layout.shape();
             let ndim = shape.len();
@@ -133,41 +134,46 @@ pub(crate) fn matmul_with_out<T, F1, F2>(
         let lhs_gp = dispatch_map_global_idx(&broacasted_lhs);
         let rhs_gp = dispatch_map_global_idx(&broacasted_rhs);
         let post_op = post_op.map(|f| {
-            let boxed: Box<dyn (Fn(T, usize, usize) -> T) + Send + Sync> = Box::new(f);
+            let boxed: &(dyn (Fn(T, usize, usize) -> T) + Send + Sync) = f;
             unsafe { std::mem::transmute(boxed) }
         });
         let post_op_vec = post_op_vec.map(|f| {
-            let boxed: Box<dyn (Fn(T::Vec, usize, usize) -> T::Vec) + Send + Sync> = Box::new(f);
+            let boxed: &(dyn (Fn(T::Vec, usize, usize) -> T::Vec) + Send + Sync) = f;
             unsafe { std::mem::transmute(boxed) }
         });
-        if let Some(_) = prepacked_rhs {
-            panic!("prepacked_rhs is not supported for batch matmul");
-        } else {
-            (0..batch_size).into_par_iter().for_each(|i| {
-                let i = i as i64;
-                let lhs_offset = lhs_gp(i * m * k);
-                let rhs_offset = rhs_gp(i * k * n);
-                let out_offset = res_gp(i * m * n);
-                let lhs_ptr = lhs + lhs_offset;
-                let rhs_ptr = rhs + rhs_offset;
-                let res_ptr = out + out_offset;
-                hpt_matmul::matmul::<T>(
-                    (lhs_ptr.cast::<T>().ptr as *const T, lhs_ptr.len()),
-                    (rhs_ptr.cast::<T>().ptr as *const T, rhs_ptr.len()),
-                    (res_ptr.cast::<T>().ptr as *mut T, res_ptr.len()),
-                    n as usize,
-                    m as usize,
-                    k as usize,
-                    [lhs_strides[lhs_strides.len() - 2], lhs_strides[lhs_strides.len() - 1]],
-                    [rhs_strides[rhs_strides.len() - 2], rhs_strides[rhs_strides.len() - 1]],
-                    [out_strides[out_strides.len() - 2], out_strides[out_strides.len() - 1]],
-                    threads,
-                    prepacked_rhs.clone(),
-                    post_op,
-                    post_op_vec
-                );
-            });
-        }
+        (0..batch_size).into_par_iter().for_each(|i| {
+            let i = i as i64;
+            let lhs_offset = lhs_gp(i * m * k);
+            let rhs_offset = rhs_gp(i * k * n);
+            let out_offset = res_gp(i * m * n);
+            let lhs_ptr = lhs + lhs_offset;
+            let rhs_ptr = rhs + rhs_offset;
+            let res_ptr = out + out_offset;
+            hpt_matmul::matmul::<T>(
+                (lhs_ptr.cast::<T>().ptr as *const T, lhs_ptr.len()),
+                (rhs_ptr.cast::<T>().ptr as *const T, rhs_ptr.len()),
+                (res_ptr.cast::<T>().ptr as *mut T, res_ptr.len()),
+                m as usize,
+                n as usize,
+                k as usize,
+                [
+                    lhs_strides[lhs_strides.len() - 2],
+                    lhs_strides[lhs_strides.len() - 1],
+                ],
+                [
+                    rhs_strides[rhs_strides.len() - 2],
+                    rhs_strides[rhs_strides.len() - 1],
+                ],
+                [
+                    out_strides[out_strides.len() - 2],
+                    out_strides[out_strides.len() - 1],
+                ],
+                threads,
+                prepacked_rhs,
+                post_op,
+                post_op_vec,
+            );
+        });
 
         Ok(())
     }
@@ -184,15 +190,14 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
     out: Pointer<T>,
     out_layout: &Layout,
     mut threads: usize,
-    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>,
+    prepacked_rhs: Option<&hpt_matmul::PrePackedRhs>,
     post_op: Option<F1>,
-    post_op_vec: Option<F2>
-)
-    -> std::result::Result<(), TensorError>
-    where
-        T: CommonBounds + hpt_matmul::MatmulMicroKernel,
-        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static
+    post_op_vec: Option<F2>,
+) -> std::result::Result<(), TensorError>
+where
+    T: CommonBounds + hpt_matmul::MatmulMicroKernel,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     threads = threads.min(num_cpus::get_physical());
     let lhs_shape = lhs_layout.shape();
@@ -212,8 +217,7 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
         } else {
             panic!(
                 "for 2D bias, first dim should be 1 or equal to m({}), but got shape({:?})",
-                m,
-                bias_shape
+                m, bias_shape
             );
         }
     } else {
@@ -238,8 +242,8 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
             (rhs_ptr.ptr as *const T, rhs_ptr.len()),
             (res_ptr.ptr as *mut T, res_ptr.len()),
             (bias.ptr as *const T, bias_size),
-            n,
             m,
+            n,
             k,
             [
                 lhs_layout.strides()[lhs_layout.ndim() - 2],
@@ -255,14 +259,14 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
             ],
             bias_strides,
             threads,
-            prepacked_rhs,
+            prepacked_rhs.as_deref(),
             post_op,
-            post_op_vec
+            post_op_vec,
         );
         Ok(())
     } else {
         fn extract_batch_and_matrix_dims(
-            layout: &Layout
+            layout: &Layout,
         ) -> Result<(Vec<i64>, i64, i64), TensorError> {
             let shape = layout.shape();
             let ndim = shape.len();
@@ -327,17 +331,26 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
                     (rhs_ptr.cast::<T>().ptr as *const T, rhs_ptr.len()),
                     (res_ptr.cast::<T>().ptr as *mut T, res_ptr.len()),
                     (bias.cast::<T>().ptr as *const T, bias_size),
-                    n as usize,
                     m as usize,
+                    n as usize,
                     k as usize,
-                    [lhs_strides[lhs_strides.len() - 2], lhs_strides[lhs_strides.len() - 1]],
-                    [rhs_strides[rhs_strides.len() - 2], rhs_strides[rhs_strides.len() - 1]],
-                    [out_strides[out_strides.len() - 2], out_strides[out_strides.len() - 1]],
+                    [
+                        lhs_strides[lhs_strides.len() - 2],
+                        lhs_strides[lhs_strides.len() - 1],
+                    ],
+                    [
+                        rhs_strides[rhs_strides.len() - 2],
+                        rhs_strides[rhs_strides.len() - 1],
+                    ],
+                    [
+                        out_strides[out_strides.len() - 2],
+                        out_strides[out_strides.len() - 1],
+                    ],
                     bias_strides,
                     threads,
-                    prepacked_rhs.clone(),
+                    prepacked_rhs.as_deref(),
                     post_op,
-                    post_op_vec
+                    post_op_vec,
                 );
             });
         }
@@ -348,7 +361,14 @@ pub(crate) fn addmm_with_out<T, F1, F2>(
 
 impl Tensor {
     pub fn matmul(&self, rhs: &Tensor) -> Result<Tensor, TensorError> {
-        let mut res = matmul_prepare(self, rhs, None)?;
+        let mut res = matmul_prepare(
+            &self.device,
+            &self.layout,
+            self.dtype,
+            &rhs.layout,
+            rhs.dtype,
+            None,
+        )?;
         self.matmul_(&rhs, &mut res)
     }
 
@@ -357,14 +377,20 @@ impl Tensor {
         rhs: &Tensor,
         bias: Option<&Tensor>,
         alpha: f64,
-        beta: f64
+        beta: f64,
     ) -> Result<Tensor, TensorError> {
         macro_rules! matmul {
-            ($dtype:ty) => {
-        {
+            ($dtype:ty) => {{
                 type T = $dtype;
                 type InVec = <T as TypeCommon>::Vec;
-                let res = matmul_prepare(self, rhs, None)?;
+                let res = matmul_prepare(
+                    &self.device,
+                    &self.layout,
+                    self.dtype,
+                    &rhs.layout,
+                    rhs.dtype,
+                    None,
+                )?;
                 if let Some(bias) = bias {
                     let bias_ptr = bias.ptr::<T>();
                     let bias_strides = bias.strides();
@@ -388,8 +414,8 @@ impl Tensor {
                             res.layout(),
                             current_num_threads(),
                             None,
-                            None::<fn(T, usize, usize) -> T>,
-                            None::<fn(InVec, usize, usize) -> InVec>,
+                            None,
+                            None,
                         )?,
                         (true, false) => {
                             matmul_with_out(
@@ -401,12 +427,12 @@ impl Tensor {
                                 res.layout(),
                                 current_num_threads(),
                                 None,
-                                Some(move |inp: T, m, n| {
+                                Some(&move |inp: T, m, n| {
                                     inp._add(beta_casted._mul(
                                         bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs],
                                     ))
                                 }),
-                                Some(move |inp: InVec, m, n| {
+                                Some(&move |inp: InVec, m, n| {
                                     let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
                                     (bias_ptr + offset).cast::<InVec>().read_unaligned() * beta_vec
                                         + inp
@@ -422,8 +448,8 @@ impl Tensor {
                             res.layout(),
                             current_num_threads(),
                             None,
-                            Some(move |inp: T, _, _| inp._mul(alpha_casted)),
-                            Some(move |inp: InVec, _, _| inp * alpha_vec),
+                            Some(&move |inp: T, _, _| inp._mul(alpha_casted)),
+                            Some(&move |inp: InVec, _, _| inp * alpha_vec),
                         )?,
                         (false, false) => {
                             matmul_with_out(
@@ -435,12 +461,12 @@ impl Tensor {
                                 res.layout(),
                                 current_num_threads(),
                                 None,
-                                Some(move |inp: T, m, n| {
+                                Some(&move |inp: T, m, n| {
                                     inp._mul(alpha_casted)._add(beta_casted._mul(
                                         bias_ptr[(m as i64) * bias_rs + (n as i64) * bias_cs],
                                     ))
                                 }),
-                                Some(move |inp: InVec, m, n| {
+                                Some(&move |inp: InVec, m, n| {
                                     let offset = (m as i64) * bias_rs + (n as i64) * bias_cs;
                                     (bias_ptr + offset).cast::<InVec>().read_unaligned() * beta_vec
                                         + inp * alpha_vec
@@ -459,8 +485,8 @@ impl Tensor {
                             res.layout(),
                             current_num_threads(),
                             None,
-                            None::<fn(T, usize, usize) -> T>,
-                            None::<fn(InVec, usize, usize) -> InVec>,
+                            None,
+                            None,
                         )?
                     } else {
                         let alpha_casted: T = alpha.cast();
@@ -474,14 +500,13 @@ impl Tensor {
                             res.layout(),
                             current_num_threads(),
                             None,
-                            Some(move |inp: T, _, _| inp._mul(alpha_casted)),
-                            Some(move |inp: InVec, _, _| inp * alpha_vec),
+                            Some(&move |inp: T, _, _| inp._mul(alpha_casted)),
+                            Some(&move |inp: InVec, _, _| inp * alpha_vec),
                         )?
                     }
                 }
                 Ok(res)
-            }
-            };
+            }};
         }
         match self.dtype {
             #[cfg(feature = "i8")]
@@ -515,24 +540,29 @@ impl Tensor {
     }
 
     pub fn matmul_(&self, rhs: &Tensor, out: &mut Tensor) -> Result<Tensor, TensorError> {
-        let res = matmul_prepare(self, rhs, Some(out.clone()))?;
+        let res = matmul_prepare(
+            &self.device,
+            &self.layout,
+            self.dtype,
+            &rhs.layout,
+            rhs.dtype,
+            Some(out.clone()),
+        )?;
         macro_rules! matmul {
-            ($dtype:ty) => {
-                {
-                    matmul_with_out::<$dtype, fn($dtype, usize, usize) -> $dtype, fn(<$dtype as TypeCommon>::Vec, usize, usize) -> <$dtype as TypeCommon>::Vec>(
-                        self.ptr::<$dtype>(),
-                        self.layout(),
-                        rhs.ptr::<$dtype>(),
-                        rhs.layout(),
-                        res.ptr::<$dtype>(),
-                        res.layout(),
-                        current_num_threads(),
-                        None,
-                        None,
-                        None
-                    )?;
-                }
-            };
+            ($dtype:ty) => {{
+                matmul_with_out::<$dtype>(
+                    self.ptr::<$dtype>(),
+                    self.layout(),
+                    rhs.ptr::<$dtype>(),
+                    rhs.layout(),
+                    res.ptr::<$dtype>(),
+                    res.layout(),
+                    current_num_threads(),
+                    None,
+                    None,
+                    None,
+                )?;
+            }};
         }
         match self.dtype {
             #[cfg(feature = "bool")]
@@ -567,7 +597,14 @@ impl Tensor {
     }
 
     pub fn addmm(&self, rhs: &Tensor, bias: &Tensor) -> Result<Tensor, TensorError> {
-        let mut res = matmul_prepare(self, rhs, None)?;
+        let mut res = matmul_prepare(
+            &self.device,
+            &self.layout,
+            self.dtype,
+            &rhs.layout,
+            rhs.dtype,
+            None,
+        )?;
         self.addmm_(&rhs, bias, &mut res)
     }
 
@@ -575,28 +612,37 @@ impl Tensor {
         &self,
         rhs: &Tensor,
         bias: &Tensor,
-        out: &mut Tensor
+        out: &mut Tensor,
     ) -> Result<Tensor, TensorError> {
-        let res = matmul_prepare(self, rhs, Some(out.clone()))?;
+        let res = matmul_prepare(
+            &self.device,
+            &self.layout,
+            self.dtype,
+            &rhs.layout,
+            rhs.dtype,
+            Some(out.clone()),
+        )?;
         macro_rules! matmul {
-            ($dtype:ty) => {
-                {
-                    addmm_with_out::<$dtype, fn($dtype, usize, usize) -> $dtype, fn(<$dtype as TypeCommon>::Vec, usize, usize) -> <$dtype as TypeCommon>::Vec>(
-                        self.ptr::<$dtype>(),
-                        self.layout(),
-                        rhs.ptr::<$dtype>(),
-                        rhs.layout(),
-                        bias.ptr::<$dtype>(),
-                        bias.layout(),
-                        res.ptr::<$dtype>(),
-                        res.layout(),
-                        current_num_threads(),
-                        None,
-                        None,
-                        None
-                    )?;
-                }
-            };
+            ($dtype:ty) => {{
+                addmm_with_out::<
+                    $dtype,
+                    fn($dtype, usize, usize) -> $dtype,
+                    fn(<$dtype as TypeCommon>::Vec, usize, usize) -> <$dtype as TypeCommon>::Vec,
+                >(
+                    self.ptr::<$dtype>(),
+                    self.layout(),
+                    rhs.ptr::<$dtype>(),
+                    rhs.layout(),
+                    bias.ptr::<$dtype>(),
+                    bias.layout(),
+                    res.ptr::<$dtype>(),
+                    res.layout(),
+                    current_num_threads(),
+                    None,
+                    None,
+                    None,
+                )?;
+            }};
         }
         match self.dtype {
             #[cfg(feature = "bool")]
@@ -642,11 +688,15 @@ pub(crate) fn addmm_prepacked_(
     out_layout: &Layout,
     num_threads: usize,
     dtype: DType,
-    prepacked_rhs: Option<Arc<hpt_matmul::PrePackedRhs>>
+    prepacked_rhs: Option<&hpt_matmul::PrePackedRhs>,
 ) -> Result<(), TensorError> {
     macro_rules! matmul {
         ($dtype:ty) => {
-            addmm_with_out::<$dtype, fn($dtype, usize, usize) -> $dtype, fn(<$dtype as TypeCommon>::Vec, usize, usize) -> <$dtype as TypeCommon>::Vec>(
+            addmm_with_out::<
+                $dtype,
+                fn($dtype, usize, usize) -> $dtype,
+                fn(<$dtype as TypeCommon>::Vec, usize, usize) -> <$dtype as TypeCommon>::Vec,
+            >(
                 lhs.cast::<$dtype>(),
                 lhs_layout,
                 rhs.cast::<$dtype>(),
@@ -658,7 +708,7 @@ pub(crate) fn addmm_prepacked_(
                 num_threads,
                 prepacked_rhs,
                 None,
-                None
+                None,
             )?
         };
     }
@@ -692,4 +742,107 @@ pub(crate) fn addmm_prepacked_(
         _ => unimplemented!("unsupported dtype {:?}", dtype),
     }
     Ok(())
+}
+
+pub(crate) fn matmul_prepacked_(
+    lhs: Pointer<u8>,
+    lhs_layout: &Layout,
+    rhs: Pointer<u8>,
+    rhs_layout: &Layout,
+    out: Pointer<u8>,
+    out_layout: &Layout,
+    num_threads: usize,
+    dtype: DType,
+    prepacked_rhs: Option<&hpt_matmul::PrePackedRhs>,
+) -> Result<(), TensorError> {
+    macro_rules! matmul {
+        ($dtype:ty) => {
+            matmul_with_out::<$dtype>(
+                lhs.cast::<$dtype>(),
+                lhs_layout,
+                rhs.cast::<$dtype>(),
+                rhs_layout,
+                out.cast::<$dtype>(),
+                out_layout,
+                num_threads,
+                prepacked_rhs,
+                None,
+                None,
+            )?
+        };
+    }
+    match dtype {
+        #[cfg(feature = "i8")]
+        hpt_types::dtype::DType::I8 => matmul!(i8),
+        #[cfg(feature = "u8")]
+        hpt_types::dtype::DType::U8 => matmul!(u8),
+        #[cfg(feature = "f32")]
+        hpt_types::dtype::DType::F32 => matmul!(f32),
+        #[cfg(feature = "f16")]
+        hpt_types::dtype::DType::F16 => matmul!(f16),
+        #[cfg(feature = "bf16")]
+        hpt_types::dtype::DType::BF16 => matmul!(bf16),
+        #[cfg(feature = "bool")]
+        hpt_types::dtype::DType::Bool => matmul!(bool),
+        #[cfg(feature = "i16")]
+        hpt_types::dtype::DType::I16 => matmul!(i16),
+        #[cfg(feature = "u16")]
+        hpt_types::dtype::DType::U16 => matmul!(u16),
+        #[cfg(feature = "i32")]
+        hpt_types::dtype::DType::I32 => matmul!(i32),
+        #[cfg(feature = "u32")]
+        hpt_types::dtype::DType::U32 => matmul!(u32),
+        #[cfg(feature = "i64")]
+        hpt_types::dtype::DType::I64 => matmul!(i64),
+        #[cfg(feature = "u64")]
+        hpt_types::dtype::DType::U64 => matmul!(u64),
+        #[cfg(feature = "f64")]
+        hpt_types::dtype::DType::F64 => matmul!(f64),
+        _ => unimplemented!("unsupported dtype {:?}", dtype),
+    }
+    Ok(())
+}
+
+pub(crate) fn mm_prepack(tensor: &Tensor, n: usize, k: usize, parallel: bool) -> PrePackedRhs {
+    assert_eq!(tensor.ndim(), 2);
+    macro_rules! pack {
+        ($dtype: ty) => {{
+            hpt_matmul::prepack_rhs(
+                (tensor.ptr::<$dtype>().ptr, tensor.size() as i64),
+                n,
+                k,
+                [tensor.strides()[0], tensor.strides()[1]],
+                parallel,
+            )
+        }};
+    }
+    match tensor.dtype {
+        #[cfg(feature = "bool")]
+        DType::Bool => pack!(bool),
+        #[cfg(feature = "i8")]
+        DType::I8 => pack!(i8),
+        #[cfg(feature = "u8")]
+        DType::U8 => pack!(u8),
+        #[cfg(feature = "i16")]
+        DType::I16 => pack!(i16),
+        #[cfg(feature = "u16")]
+        DType::U16 => pack!(u16),
+        #[cfg(feature = "i32")]
+        DType::I32 => pack!(i32),
+        #[cfg(feature = "u32")]
+        DType::U32 => pack!(u32),
+        #[cfg(feature = "i64")]
+        DType::I64 => pack!(i64),
+        #[cfg(feature = "u64")]
+        DType::U64 => pack!(u64),
+        #[cfg(feature = "f32")]
+        DType::F32 => pack!(f32),
+        #[cfg(feature = "f16")]
+        DType::F16 => pack!(half::f16),
+        #[cfg(feature = "bf16")]
+        DType::BF16 => pack!(half::bf16),
+        #[cfg(feature = "f64")]
+        DType::F64 => pack!(f64),
+        _ => unimplemented!("unsupported dtype {:?}", tensor.dtype),
+    }
 }

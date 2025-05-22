@@ -1,6 +1,6 @@
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 use crate::simd::sleef::arch::helper_aarch64::{visnan_vo_vf, vneg_vf_vf};
-use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf};
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf, xsigmoid};
 use crate::type_promote::Eval2;
 
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
@@ -429,7 +429,7 @@ impl SimdMath<f32> for f32x4 {
 
     #[inline(always)]
     fn sigmoid(self) -> Self {
-        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+        unsafe { Self(xsigmoid(self.0)) }
     }
     #[inline(always)]
     fn softsign(self) -> Self {

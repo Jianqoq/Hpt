@@ -24,10 +24,11 @@ use tch::Tensor as TchTensor;
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
+    for i in 0..1000 {
         let m = rng.random_range(1..=512);
         let n = rng.random_range(1..=512);
         let k = rng.random_range(1..=512);
+        println!("m: {}, n: {}, k: {}", m, n, k);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
         let c = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;

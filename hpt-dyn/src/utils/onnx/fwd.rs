@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use hpt_common::error::base::TensorError;
+use hpt_common::{Pointer, error::base::TensorError};
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
 
@@ -8,7 +8,10 @@ use super::operators::{
     Binary, Concat, ConstantOfShape, Conv2d, Conv2dFused, Elu, Flatten, Gather, Gemm, Lstm, Matmul,
     Permute, Pooling, Slice, Squeeze, Unary,
 };
-use crate::Tensor;
+use crate::{
+    Tensor,
+    ops::tensor::matmul::{common::matmul_prepare, matmul::matmul_prepacked_},
+};
 
 macro_rules! get {
     ($map:expr, $key:expr) => {
@@ -201,8 +204,6 @@ pub(crate) fn lstm_fwd<'a>(
     tensors: &mut HashMap<&'a str, Tensor>,
 ) -> Result<(), TensorError> {
     let x = &tensors[lstm.x.as_str()];
-    let w = &tensors[lstm.w.as_str()];
-    let r = &tensors[lstm.r.as_str()];
     let b = if let Some(b) = &lstm.b {
         Some(&tensors[b.as_str()])
     } else {
@@ -228,9 +229,9 @@ pub(crate) fn lstm_fwd<'a>(
     } else {
         None
     };
-    let (y, y_h, y_c) = x.lstm(
-        w,
-        r,
+    let (y, y_h, y_c) = x.lstm_onnx(
+        lstm.prepacked_w.as_slice(),
+        lstm.prepacked_r.as_slice(),
         b,
         seq_lens,
         init_h,
@@ -257,8 +258,27 @@ pub(crate) fn matmul_fwd<'a>(
     node_degree: &mut HashMap<&'a str, u32>,
 ) -> Result<(), TensorError> {
     let a = &tensors[matmul.a.as_str()];
-    let b = &tensors[matmul.b.as_str()];
-    let out = a.matmul(b)?;
+    let out = if let Some(meta) = &matmul.packed_b {
+        let res = matmul_prepare(&a.device, &a.layout, a.dtype, &meta.1, a.dtype, None)?;
+        matmul_prepacked_(
+            a.ptr::<u8>(),
+            &a.layout,
+            Pointer::new(
+                meta.0.buffer.0.ptr as *mut u8,
+                meta.0.buffer.1.size() as i64,
+            ),
+            &meta.1,
+            res.ptr::<u8>(),
+            &res.layout,
+            crate::physical_cores(),
+            a.dtype,
+            Some(&meta.0),
+        )?;
+        res
+    } else {
+        let b = &tensors[matmul.b.as_str()];
+        a.matmul(b)?
+    };
     tensors.insert(matmul.output.as_str(), out);
     try_remove_node!(matmul.a.as_str(), node_degree, tensors);
     try_remove_node!(matmul.b.as_str(), node_degree, tensors);
