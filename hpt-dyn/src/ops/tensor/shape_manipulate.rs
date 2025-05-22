@@ -410,8 +410,7 @@ impl Tensor {
     #[track_caller]
     pub fn slice(&self, index: &[(i64, i64, i64)]) -> Result<Tensor, TensorError> {
         let (res_shape, res_strides, offset) = slice_process(
-            self.layout.shape().to_vec(),
-            self.layout.strides().to_vec(),
+            &self.layout,
             index,
             1,
         )?;
@@ -537,7 +536,7 @@ impl Tensor {
             .zip(inputs.into_par_iter())
             .for_each(|(res_tensors, inputs)| {
                 for (mut res, inp) in res_tensors.into_iter().zip(inputs.into_iter()) {
-                    res._copy_from(&inp, 1);
+                    res.copy_from_thr_specific(&inp, 1);
                 }
             });
         if keepdims {

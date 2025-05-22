@@ -63,7 +63,7 @@ impl Tensor {
                         .slice(&result_selections)
                         .expect("result slice failed");
 
-                    result_slice._copy_from(&inp_slice, 1);
+                    result_slice.copy_from_thr_specific(&inp_slice, 1);
                 });
             }
             _ => unreachable!(),

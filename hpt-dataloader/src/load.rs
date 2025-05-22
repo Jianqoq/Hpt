@@ -2,7 +2,7 @@ use std::{ collections::HashMap, fs::File, io::{ Read, Seek } };
 
 use crate::{ data_loader::{ HeaderInfo, LoadResult }, CompressionAlgo };
 use flate2::read::{ DeflateDecoder, GzDecoder, ZlibDecoder };
-use hpt_common::slice::slice_process;
+use hpt_common::{layout::layout::Layout, slice::slice_process};
 
 pub(crate) fn load_compressed_slice<'a>(
     file_name: &str,
@@ -32,8 +32,7 @@ pub(crate) fn load_compressed_slice<'a>(
 
         // scale the shape, strides with mem_size
         let (res_shape, res_strides, offset) = slice_process(
-            info.shape.clone(),
-            info.strides.clone(),
+            &Layout::new(info.shape.clone(), info.strides.clone()),
             &slices,
             sizeof as i64
         )?;

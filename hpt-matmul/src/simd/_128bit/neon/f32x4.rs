@@ -1,5 +1,5 @@
 use std::arch::aarch64::*;
-use crate::{simd::_128bit::common::f32x4::f32x4, VecTrait};
+use crate::{ simd::_128bit::common::f32x4::f32x4, VecTrait };
 
 impl VecTrait<f32> for f32x4 {
     #[inline(always)]
@@ -18,14 +18,14 @@ impl VecTrait<f32> for f32x4 {
     fn partial_load(ptr: *const f32, num_elem: usize) -> Self {
         let mut result = Self::splat(f32::default());
         unsafe {
-            std::ptr::copy_nonoverlapping(ptr, (&mut result.0) as *mut _ as *mut f32, num_elem);
+            std::ptr::copy_nonoverlapping(ptr, &mut result.0 as *mut _ as *mut f32, num_elem);
             result
         }
     }
     #[inline(always)]
     fn partial_store(self, ptr: *mut f32, num_elem: usize) {
         unsafe {
-            std::ptr::copy_nonoverlapping((&self.0) as *const _ as *const f32, ptr, num_elem);
+            std::ptr::copy_nonoverlapping(&self.0 as *const _ as *const f32, ptr, num_elem);
         }
     }
 }

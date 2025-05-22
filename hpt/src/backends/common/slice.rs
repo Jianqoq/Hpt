@@ -61,8 +61,7 @@ where
         index: &[(i64, i64, i64)],
     ) -> std::result::Result<_Tensor<T, B, DEVICE, A>, TensorError> {
         let (res_shape, res_strides, offset) = slice_process(
-            self.layout.shape().to_vec(),
-            self.layout.strides().to_vec(),
+            &self.layout,
             index,
             1,
         )?;

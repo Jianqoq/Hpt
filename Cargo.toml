@@ -39,6 +39,7 @@ log = { workspace = true }
 half = { workspace = true }
 safetensors = { workspace = true }
 spindle = { workspace = true }
+flame = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"
@@ -115,6 +116,7 @@ libc = "0.2.172"
 dashmap = "6.1.0"
 tract-core = "0.21.13"
 tract-onnx = "0.21.13"
+flame = "0.2.2"
 
 [[bin]]
 name = "hpt-workspace"
@@ -123,7 +125,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = true
-debug = false
+debug = true
 lto = "fat"
 codegen-units = 1
 

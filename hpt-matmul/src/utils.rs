@@ -1,7 +1,7 @@
 use num_integer::gcd;
-use std::{cell::OnceCell, cmp::min};
+use std::{ cell::OnceCell, cmp::min };
 
-use crate::{Pointer, Zero, vec_size};
+use crate::{ Pointer, Zero, vec_size };
 use gemm_common::gemm::CACHELINE_ALIGN;
 
 thread_local! {
@@ -44,7 +44,7 @@ pub(crate) fn calculate_prg(
     ib: usize,
     prg: [usize; 3],
     mut start: usize,
-    end: usize,
+    end: usize
 ) -> [usize; 3] {
     let mut ret = prg;
     let j_start = prg[0] * nc;
@@ -79,8 +79,11 @@ pub(crate) fn calculate_prgs(
     mr: usize,
     nr: usize,
     ib: usize,
-    intervals: &[(usize, usize)],
+    intervals: &[(usize, usize)]
 ) -> Vec<[usize; 3]> {
+    if intervals.len() == 1 {
+        return vec![[0, 0, 0]];
+    }
     let mut prgs = vec![[0, 0, 0]; intervals.len()];
     let mut prg = [0, 0, 0];
     for (tid, (start, end)) in intervals.iter().enumerate() {
@@ -92,6 +95,9 @@ pub(crate) fn calculate_prgs(
 
 pub(crate) fn mt_intervals(size: usize, num_threads: usize) -> Vec<(usize, usize)> {
     let mut intervals = Vec::with_capacity(num_threads);
+    if num_threads == 1 {
+        return vec![(0, size)];
+    }
     for i in 0..num_threads {
         let start_index = i * (size / num_threads) + std::cmp::min(i, size % num_threads);
         let end_index = start_index + size / num_threads + ((i < size % num_threads) as usize);
@@ -112,23 +118,27 @@ const CACHE_INFO: OnceCell<[CacheInfo; 3]> = OnceCell::new();
 pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
     #[cfg(target_arch = "x86_64")]
     {
-        use raw_cpuid::{CacheType, CpuId};
+        use raw_cpuid::{ CacheType, CpuId };
         *CACHE_INFO.get_or_init(|| {
             let cpuid = CpuId::new();
-            let mut cache_info = [CacheInfo {
-                bytes: 0,
-                associativity: 0,
-                cache_line_bytes: 0,
-            }; 3];
+            let mut cache_info = [
+                CacheInfo {
+                    bytes: 0,
+                    associativity: 0,
+                    cache_line_bytes: 0,
+                };
+                3
+            ];
             if let Some(cparams) = cpuid.get_cache_parameters() {
                 for cache in cparams {
-                    let size = cache.associativity()
-                        * cache.physical_line_partitions()
-                        * cache.coherency_line_size()
-                        * cache.sets();
-                    let valid_cache = (cache.cache_type() == CacheType::Data
-                        || cache.cache_type() == CacheType::Unified)
-                        && cache.level() <= 3;
+                    let size =
+                        cache.associativity() *
+                        cache.physical_line_partitions() *
+                        cache.coherency_line_size() *
+                        cache.sets();
+                    let valid_cache =
+                        (cache.cache_type() == CacheType::Data ||
+                            cache.cache_type() == CacheType::Unified) && cache.level() <= 3;
                     if valid_cache {
                         let info = CacheInfo {
                             bytes: size,
@@ -148,11 +158,14 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
     {
         use std::ffi::CString;
         *CACHE_INFO.get_or_init(|| {
-            let mut cache_info = [CacheInfo {
-                bytes: 0,
-                associativity: 0,
-                cache_line_bytes: 0,
-            }; 3];
+            let mut cache_info = [
+                CacheInfo {
+                    bytes: 0,
+                    associativity: 0,
+                    cache_line_bytes: 0,
+                };
+                3
+            ];
             for level in 1..=3 {
                 let mut size: u64 = 0;
                 let mut line_size: u64 = 0;
@@ -173,7 +186,7 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
                         &mut size as *mut _ as *mut libc::c_void,
                         &mut size_len,
                         std::ptr::null_mut(),
-                        0,
+                        0
                     );
                 }
 
@@ -183,7 +196,7 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
                         &mut line_size as *mut _ as *mut libc::c_void,
                         &mut line_size_len,
                         std::ptr::null_mut(),
-                        0,
+                        0
                     );
                 }
                 cache_info[level - 1] = CacheInfo {
@@ -204,7 +217,7 @@ pub fn _kernel_params(
     k: usize,
     nr: usize,
     mr: usize,
-    sizeof: usize,
+    sizeof: usize
 ) -> KernelParams {
     #[inline]
     fn round_down(a: usize, b: usize) -> usize {
@@ -314,7 +327,7 @@ pub fn kernel_params(
     k: usize,
     nr: usize,
     mr: usize,
-    sizeof: usize,
+    sizeof: usize
 ) -> KernelParams {
     let params = _kernel_params(n, m, k, nr, mr, sizeof);
     KernelParams {
@@ -336,7 +349,7 @@ pub(crate) fn pack_a_mixed_precision<T, I: Zero>(
     tid: usize,
     mb_per_thread: usize,
     num_mr_blocks: usize,
-    cast: fn(&mut I, &T),
+    cast: fn(&mut I, &T)
 ) {
     let start_block = tid * mb_per_thread;
     let end_block = std::cmp::min((tid + 1) * mb_per_thread, num_mr_blocks);
@@ -376,7 +389,7 @@ pub(crate) fn pack_b_mixed_precision<T, IM: Zero, TVec, IMVec>(
     nr: usize,
     pack_vec: fn(*mut IMVec, *const TVec, usize),
     pack_vec_exceed: fn(*mut IMVec, usize),
-    cast: fn(&mut IM, &T),
+    cast: fn(&mut IM, &T)
 ) {
     let nr_div_lane = nr / vec_size::<T>();
 
@@ -424,6 +437,7 @@ pub(crate) fn pack_b_mixed_precision<T, IM: Zero, TVec, IMVec>(
     }
 }
 
+#[cfg(not(target_feature = "neon"))]
 pub(crate) fn pack_a<T: Zero + Copy>(
     a: Pointer<T>,
     mut packed_a: Pointer<T>,
@@ -435,7 +449,7 @@ pub(crate) fn pack_a<T: Zero + Copy>(
     mr: usize,
     tid: usize,
     mb_per_thread: usize,
-    num_mr_blocks: usize,
+    num_mr_blocks: usize
 ) {
     let start_block = tid * mb_per_thread;
     let end_block = std::cmp::min((tid + 1) * mb_per_thread, num_mr_blocks);
@@ -464,6 +478,95 @@ pub(crate) fn pack_a<T: Zero + Copy>(
     }
 }
 
+#[cfg(target_feature = "neon")]
+pub(crate) fn pack_a<T: Zero + Copy>(
+    a: Pointer<T>,
+    mut packed_a: Pointer<T>,
+    lda: i64,
+    stride: i64,
+    mc: usize,
+    kb: usize,
+    kc: usize,
+    mr: usize,
+    tid: usize,
+    mb_per_thread: usize,
+    num_mr_blocks: usize
+) {
+    let start_block = tid * mb_per_thread;
+    let end_block = std::cmp::min((tid + 1) * mb_per_thread, num_mr_blocks);
+    if start_block >= num_mr_blocks {
+        return;
+    }
+    let start_i = start_block * mr;
+    let end_i = std::cmp::min(end_block * mr, mc);
+    let offset = start_block * mr * kc;
+    packed_a += offset as i64;
+    if stride == 1 {
+        #[inline(always)]
+        fn transpose_4x4<T: Copy>(ptr: Pointer<T>, mut ptr_out: Pointer<T>) {
+            let val0 = ptr[0];
+            let val1 = ptr[1];
+            let val2 = ptr[2];
+            let val3 = ptr[3];
+            ptr_out[0] = val0;
+            ptr_out[4] = val1;
+            ptr_out[8] = val2;
+            ptr_out[12] = val3;
+        }
+        for i in (start_i..end_i).step_by(mr) {
+            let mb = mr.min(mc - i);
+            let i_lda = (i as i64) * lda;
+            if mb == 4 {
+                for p in (0..kb).step_by(4) {
+                    transpose_4x4(a.offset(i_lda + (p as i64)), packed_a);
+                    transpose_4x4(a.offset(i_lda + lda + (p as i64)), packed_a.offset(1));
+                    transpose_4x4(a.offset(i_lda + 2 * lda + (p as i64)), packed_a.offset(2));
+                    transpose_4x4(a.offset(i_lda + 3 * lda + (p as i64)), packed_a.offset(3));
+                    packed_a += 16i64;
+                }
+                for p in kb / 4 * 4..kb {
+                    for ii in 0..mb as i64 {
+                        let row = (i as i64) + ii;
+                        *packed_a = a[row * lda + (p as i64)];
+                        packed_a += 1i64;
+                    }
+                }
+            } else {
+                for p in 0..kb {
+                    for ii in 0..mb as i64 {
+                        let row = (i as i64) + ii;
+                        *packed_a = a[row * lda + (p as i64)];
+                        packed_a += 1i64;
+                    }
+                }
+            }
+            for _ in kb..kc {
+                for _ in 0..mb as i64 {
+                    *packed_a = T::ZERO;
+                    packed_a += 1i64;
+                }
+            }
+        }
+    } else {
+        for i in (start_i..end_i).step_by(mr) {
+            let mb = mr.min(mc - i);
+            for p in 0..kb as i64 {
+                for ii in 0..mb as i64 {
+                    let row = (i as i64) + ii;
+                    *packed_a = a[row * lda + p * stride];
+                    packed_a += 1i64;
+                }
+            }
+            for _ in kb..kc {
+                for _ in 0..mb as i64 {
+                    *packed_a = T::ZERO;
+                    packed_a += 1i64;
+                }
+            }
+        }
+    }
+}
+
 pub(crate) fn pack_b<T: Copy + Zero, TVec>(
     b: Pointer<T>,
     mut packed_b: Pointer<T>,
@@ -474,7 +577,7 @@ pub(crate) fn pack_b<T: Copy + Zero, TVec>(
     kc: usize,
     nr: usize,
     jj_start: usize,
-    need_full_pack: bool,
+    need_full_pack: bool
 ) {
     let start = if need_full_pack {
         0

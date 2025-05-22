@@ -2,14 +2,24 @@ use std::cmp::min;
 
 use dyn_stack::DynStack;
 use gemm_common::gemm::CACHELINE_ALIGN;
-use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rayon::iter::{ IntoParallelIterator, ParallelIterator };
 
 use crate::{
-    ALIGN, Pointer, Zero,
+    ALIGN,
+    Pointer,
+    Zero,
     microkernel_trait::MatmulMicroKernel,
     utils::{
-        L2_SLAB, L3_SLAB, PrePackedRhs, calculate_jobs, calculate_prgs, mt_intervals, pack_a,
-        pack_a_mixed_precision, pack_b, pack_b_mixed_precision,
+        L2_SLAB,
+        L3_SLAB,
+        PrePackedRhs,
+        calculate_jobs,
+        calculate_prgs,
+        mt_intervals,
+        pack_a,
+        pack_a_mixed_precision,
+        pack_b,
+        pack_b_mixed_precision,
     },
     vec_size,
 };
@@ -40,15 +50,20 @@ pub(crate) fn func_name<T, F1, F2>(
     mut num_threads: usize,
     prepack_rhs: Option<&PrePackedRhs>,
     #[allow(unused_variables)] post_op: F1,
-    #[allow(unused_variables)] post_op_vec: F2,
-) where
-    T: MatmulMicroKernel + Send + Sync + Copy + Zero,
-    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    #[allow(unused_variables)] post_op_vec: F2
+)
+    where
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(
+            <T as MatmulMicroKernel>::SelfVec,
+            usize,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec +
+            Clone +
+            Send +
+            Sync +
+            'static
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -59,11 +74,13 @@ pub(crate) fn func_name<T, F1, F2>(
         if do_lhs_pack {
             let mut mem = mem.borrow_mut();
             let stack = DynStack::new(&mut mem);
-            let (packed_a_storage, _) =
-                stack.make_aligned_uninit::<T>(num_mr_blocks * mr * kc, ALIGN);
+            let (packed_a_storage, _) = stack.make_aligned_uninit::<T>(
+                num_mr_blocks * mr * kc,
+                ALIGN
+            );
             let packed_a = Pointer::new(
                 packed_a_storage.as_mut_ptr() as *mut T,
-                (num_mr_blocks * mr * kc) as i64,
+                (num_mr_blocks * mr * kc) as i64
             );
             packed_a
         } else {
@@ -91,15 +108,14 @@ pub(crate) fn func_name<T, F1, F2>(
 
     let panel_size = num_nr_blocks * nr * kc;
 
-    for i in (0..m).step_by(mc) {
+    let mut i = 0;
+    while i < m {
         let ib = min(mc, m - i);
         let prgs = if ib == mc { &prgs } else { &rem_prgs };
-        let intervals = if ib == mc {
-            &intervals
-        } else {
-            &mc_rem_intervals
-        };
-        for p in (0..k).step_by(kc) {
+        let intervals = if ib == mc { &intervals } else { &mc_rem_intervals };
+
+        let mut p = 0;
+        while p < k {
             let first_kiter = p == 0;
             let pb = min(kc, k - p);
 
@@ -116,7 +132,7 @@ pub(crate) fn func_name<T, F1, F2>(
                         mr,
                         tid,
                         mb_per_thread,
-                        num_mr_blocks,
+                        num_mr_blocks
                     );
                 });
                 packed_a
@@ -128,30 +144,33 @@ pub(crate) fn func_name<T, F1, F2>(
                 let use_start = intervals[tid].0;
                 let use_end = intervals[tid].1;
                 let j_idx = use_prg[0];
-                let j_start = j_idx * nc;
+                let mut j = j_idx * nc;
 
                 let mut job_count = use_start;
                 let mut i_start = use_prg[1] * mr;
                 let mut jj_start = use_prg[2] * nr;
                 let need_full_pack = ib - i_start > mr;
-                let mut panel_idx = 0;
 
                 let mut packed_b = if let Some(prepacked) = &prepack_rhs {
-                    let buffer = prepacked.buffer.0.cast::<T>() + (j_idx * panel_size) as i64;
+                    let buffer = prepacked.buffer.0.cast::<T>() + ((j_idx * panel_size) as i64);
                     buffer
                 } else {
                     L2_SLAB.with_borrow_mut(|mem| {
                         let stack = DynStack::new(mem);
-                        let (packed_b_storage, _) =
-                            stack.make_aligned_uninit::<T>(panel_size, CACHELINE_ALIGN);
+                        let (packed_b_storage, _) = stack.make_aligned_uninit::<T>(
+                            panel_size,
+                            CACHELINE_ALIGN
+                        );
                         Pointer::new(
                             packed_b_storage.as_mut_ptr() as *mut T,
-                            (num_nr_blocks * nr * kc) as i64,
+                            (num_nr_blocks * nr * kc) as i64
                         )
                     })
                 };
                 let packed_b_cpy = packed_b;
-                'outer: for j in (j_start..n).step_by(nc) {
+
+                let mut j_idx = 0;
+                'outer: while j < n {
                     let jb = min(nc, n - j);
                     let c = out + (i as i64) * ldc + (j as i64);
                     if do_rhs_pack {
@@ -165,16 +184,19 @@ pub(crate) fn func_name<T, F1, F2>(
                             kc,
                             nr,
                             jj_start,
-                            need_full_pack,
+                            need_full_pack
                         );
                     } else {
-                        packed_b = packed_b_cpy + panel_idx * (panel_size as i64);
-                        panel_idx += 1;
+                        packed_b = packed_b_cpy + ((j_idx * panel_size) as i64);
                     }
-                    for ii in (i_start..ib).step_by(mr) {
+
+                    let mut ii = i_start;
+                    while ii < ib {
                         let mb = min(mr, ib - ii);
                         let micro_kernel = get_kernel(nr / vec_size::<T>(), mb);
-                        for jj in (jj_start..jb).step_by(nr) {
+
+                        let mut jj = jj_start;
+                        while jj < jb {
                             let jjb = min(nr, jb - jj);
                             let packed_b = packed_b + (jj as i64) * (kc as i64);
                             if do_lhs_pack {
@@ -187,7 +209,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                     pb,
                                     jjb,
                                     mb as i64,
-                                    extra_args,
+                                    extra_args
                                 );
                             } else {
                                 micro_kernel(
@@ -199,20 +221,28 @@ pub(crate) fn func_name<T, F1, F2>(
                                     pb,
                                     jjb,
                                     lhs_col_stride,
-                                    extra_args,
+                                    extra_args
                                 );
                             }
                             job_count += 1;
                             if job_count >= use_end {
                                 break 'outer;
                             }
+                            jj += nr;
                         }
                         jj_start = 0;
+
+                        ii += mr;
                     }
                     i_start = 0;
+
+                    j += nc;
+                    j_idx += 1;
                 }
             });
+            p += kc;
         }
+        i += mc;
     }
 }
 
@@ -234,9 +264,9 @@ pub(crate) fn prepack_b<T>(
     kc: usize,
     nc: usize,
     nr: usize,
-    parallel: bool,
-) where
-    T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+    parallel: bool
+)
+    where T: MatmulMicroKernel + Send + Sync + Copy + Zero
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -270,7 +300,7 @@ pub(crate) fn prepack_b<T>(
                 kc,
                 nr,
                 0,
-                true,
+                true
             );
         });
     } else {
@@ -289,7 +319,7 @@ pub(crate) fn prepack_b<T>(
                     kc,
                     nr,
                     0,
-                    true,
+                    true
                 );
             }
         }
@@ -325,24 +355,29 @@ pub(crate) fn func_name<T, F1, F2>(
     pack_vec: fn(
         *mut <T as MatmulMicroKernel>::MixedVec,
         *const <T as MatmulMicroKernel>::SelfVec,
-        usize,
+        usize
     ),
     pack_vec_exceed: fn(*mut <T as MatmulMicroKernel>::MixedVec, usize),
     pack_zero: fn(&mut <T as MatmulMicroKernel>::MixedType, &T),
     vec_cast_back: fn(
         *mut <T as MatmulMicroKernel>::SelfVec,
-        *const <T as MatmulMicroKernel>::MixedVec,
+        *const <T as MatmulMicroKernel>::MixedVec
     ),
-    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType),
-) where
-    T: MatmulMicroKernel + Send + Sync + Copy + Zero,
-    <T as MatmulMicroKernel>::MixedType: Send + Sync + Copy + Zero,
-    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
-    F2: Fn(<T as MatmulMicroKernel>::SelfVec, usize, usize) -> <T as MatmulMicroKernel>::SelfVec
-        + Clone
-        + Send
-        + Sync
-        + 'static,
+    cast_back: fn(&mut T, &<T as MatmulMicroKernel>::MixedType)
+)
+    where
+        T: MatmulMicroKernel + Send + Sync + Copy + Zero,
+        <T as MatmulMicroKernel>::MixedType: Send + Sync + Copy + Zero,
+        F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(
+            <T as MatmulMicroKernel>::SelfVec,
+            usize,
+            usize
+        ) -> <T as MatmulMicroKernel>::SelfVec +
+            Clone +
+            Send +
+            Sync +
+            'static
 {
     assert_eq!(nr % vec_size::<T>(), 0);
 
@@ -352,14 +387,14 @@ pub(crate) fn func_name<T, F1, F2>(
     let packed_a = L3_SLAB.with(|mem| {
         let mut mem = mem.borrow_mut();
         let stack = DynStack::new(&mut mem);
-        let (packed_a_storage, _) = stack
-            .make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
+        let (packed_a_storage, _) =
+            stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
                 num_mr_blocks * mr * kc,
-                ALIGN,
+                ALIGN
             );
         let packed_a = Pointer::new(
             packed_a_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
-            (num_mr_blocks * mr * kc) as i64,
+            (num_mr_blocks * mr * kc) as i64
         );
         packed_a
     });
@@ -386,11 +421,7 @@ pub(crate) fn func_name<T, F1, F2>(
     for i in (0..m).step_by(mc) {
         let ib = min(mc, m - i);
         let prgs = if ib == mc { &prgs } else { &rem_prgs };
-        let intervals = if ib == mc {
-            &intervals
-        } else {
-            &mc_rem_intervals
-        };
+        let intervals = if ib == mc { &intervals } else { &mc_rem_intervals };
         for p in (0..k).step_by(kc) {
             let first_kiter = p == 0;
             let pb = min(kc, k - p);
@@ -407,7 +438,7 @@ pub(crate) fn func_name<T, F1, F2>(
                     tid,
                     mb_per_thread,
                     num_mr_blocks,
-                    pack_zero,
+                    pack_zero
                 );
             });
             spindle::for_each_raw(num_threads, |tid| {
@@ -421,25 +452,26 @@ pub(crate) fn func_name<T, F1, F2>(
                 let mut i_start = use_prg[1] * mr;
                 let mut jj_start = use_prg[2] * nr;
                 let mut packed_b = if let Some(prepacked) = &prepack_rhs {
-                    let buffer = prepacked.buffer.0
-                        + (j_idx
-                            * panel_size
-                            * std::mem::size_of::<<T as MatmulMicroKernel>::MixedType>())
-                            as i64;
+                    let buffer =
+                        prepacked.buffer.0 +
+                        (
+                            (j_idx *
+                                panel_size *
+                                std::mem::size_of::<<T as MatmulMicroKernel>::MixedType>()) as i64
+                        );
                     buffer.cast::<<T as MatmulMicroKernel>::MixedType>()
                 } else {
                     L2_SLAB.with(|mem| {
                         let mut mem = mem.borrow_mut();
                         let stack = DynStack::new(&mut mem);
-                        let (packed_b_storage, _) = stack
-                            .make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
+                        let (packed_b_storage, _) =
+                            stack.make_aligned_uninit::<<T as MatmulMicroKernel>::MixedType>(
                                 num_nr_blocks * nr * kc,
-                                ALIGN,
+                                ALIGN
                             );
                         Pointer::new(
-                            packed_b_storage.as_mut_ptr()
-                                as *mut <T as MatmulMicroKernel>::MixedType,
-                            (num_nr_blocks * nr * kc) as i64,
+                            packed_b_storage.as_mut_ptr() as *mut <T as MatmulMicroKernel>::MixedType,
+                            (num_nr_blocks * nr * kc) as i64
                         )
                     })
                 };
@@ -453,7 +485,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             T,
                             <T as MatmulMicroKernel>::MixedType,
                             <T as MatmulMicroKernel>::SelfVec,
-                            <T as MatmulMicroKernel>::MixedVec,
+                            <T as MatmulMicroKernel>::MixedVec
                         >(
                             b + ((p as i64) * ldb + (j as i64) * rhs_col_stride),
                             packed_b,
@@ -465,7 +497,7 @@ pub(crate) fn func_name<T, F1, F2>(
                             nr,
                             pack_vec,
                             pack_vec_exceed,
-                            pack_zero,
+                            pack_zero
                         );
                     } else {
                         packed_b = packed_b_cpy + panel_idx * (panel_size as i64);
@@ -488,7 +520,7 @@ pub(crate) fn func_name<T, F1, F2>(
                                 jjb,
                                 mb as i64,
                                 first_kiter,
-                                args,
+                                args
                             );
                             job_count += 1;
                             if job_count >= use_end {
