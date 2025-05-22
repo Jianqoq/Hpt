@@ -44,6 +44,46 @@ impl Direction {
     }
 }
 
+#[inline]
+fn elementwise_activate<T: CommonBounds>(
+    mut ptr: Pointer<T>,
+    size: i64,
+    activate_scalar: impl (Fn(T) -> T) + Send + Sync + Copy,
+    activate_vec: impl (Fn(T::Vec) -> T::Vec) + Send + Sync + Copy,
+) {
+    let vec_ptr = ptr.cast::<T::Vec>();
+    use hpt_types::traits::VecTrait;
+    for h in 0..size / T::Vec::SIZE as i64 {
+        vec_ptr
+            .offset(h as isize)
+            .write_unaligned(activate_vec(vec_ptr.offset(h as isize).read_unaligned()));
+    }
+    for h in size / T::Vec::SIZE as i64 * T::Vec::SIZE as i64..size {
+        let res = activate_scalar(ptr[h]);
+        ptr[h] = res;
+    }
+}
+
+#[inline]
+fn elementwise_mul<T: CommonBounds>(mut lhs: Pointer<T>, rhs: Pointer<T>, size: i64) {
+    let vec_ptr = lhs.cast::<T::Vec>();
+    let rhs_vec_ptr = rhs.cast::<T::Vec>();
+    use hpt_types::traits::VecTrait;
+    use hpt_types::type_promote::NormalOut;
+    for h in 0..size / T::Vec::SIZE as i64 {
+        vec_ptr.offset(h as isize).write_unaligned(
+            vec_ptr
+                .offset(h as isize)
+                .read_unaligned()
+                ._mul(rhs_vec_ptr.offset(h as isize).read_unaligned()),
+        );
+    }
+    for h in size / T::Vec::SIZE as i64 * T::Vec::SIZE as i64..size {
+        let res = lhs[h]._mul(rhs[h]);
+        lhs[h] = res;
+    }
+}
+
 fn lstm_post_process<T: CommonBounds>(
     y: Pointer<T>,
     c_t: Pointer<T>,
@@ -85,11 +125,8 @@ fn lstm_post_process<T: CommonBounds>(
     let i_vec_ptr = i.cast::<T::Vec>();
     let o_vec_ptr = o.cast::<T::Vec>();
     let f_vec_ptr = f.cast::<T::Vec>();
-    let g_vec_ptr = g.cast::<T::Vec>();
     let c_vec_ptr = c_t.cast::<T::Vec>();
     let y_vec_ptr = y.cast::<T::Vec>();
-
-    let num_vec = hidden_size / T::Vec::SIZE as i64;
 
     match p {
         Some(p) => {
@@ -114,25 +151,10 @@ fn lstm_post_process<T: CommonBounds>(
             }
         }
         None => {
-            let num_vecx3 = 3 * hidden_size / T::Vec::SIZE as i64;
+            elementwise_activate(i, 3 * hidden_size, activate1, activate1_vec);
+            elementwise_activate(g, hidden_size, activate2, activate2_vec);
+            elementwise_mul(i, g, hidden_size);
             let num_vec = hidden_size / T::Vec::SIZE as i64;
-            for h in 0..num_vec {
-                i_vec_ptr
-                    .offset(h as isize)
-                    .write_unaligned(activate1_vec(i_vec_ptr.offset(h as isize).read_unaligned()));
-            }
-            for h in num_vecx3..num_vecx3 + num_vec {
-                i_vec_ptr
-                    .offset(h as isize)
-                    .write_unaligned(activate2_vec(i_vec_ptr.offset(h as isize).read_unaligned()));
-            }
-            for h in 0..num_vec {
-                let i_vec = i_vec_ptr.offset(h as isize).read_unaligned();
-                let g_vec = g_vec_ptr.offset(h as isize).read_unaligned();
-                i_vec_ptr
-                    .offset(h as isize)
-                    .write_unaligned(i_vec._mul(g_vec));
-            }
             for h in 0..num_vec {
                 let i_res = i_vec_ptr.offset(h as isize).read_unaligned();
                 let o_res = o_vec_ptr.offset(h as isize).read_unaligned();
@@ -145,12 +167,11 @@ fn lstm_post_process<T: CommonBounds>(
                 c_vec_ptr.offset(h as isize).write_unaligned(tmp);
             }
             for h in num_vec * T::Vec::SIZE as i64..hidden_size {
-                let i_res = activate1(i[h]);
-                let o_res = activate1(o[h]);
-                let f_res = activate1(f[h]);
-                let g_res = activate2(g[h]);
+                let i_res = i[h];
+                let o_res = o[h];
+                let f_res = f[h];
                 let c_t_res = c_t[h];
-                let tmp = c_t_res._mul_add(f_res, i_res._mul(g_res));
+                let tmp = c_t_res._mul_add(f_res, i_res);
                 y[h] = o_res._mul(tmp._tanh());
                 c_t[h] = tmp;
             }
@@ -567,7 +588,6 @@ where
                 }
                 final_h.slice(&select![start:end, ..])?.copy_from(&h_t);
                 final_c.slice(&select![start:end, ..])?.copy_from(&c_t);
-                // println!("time: {:?}", total_post_time);
                 Ok(())
             };
 
