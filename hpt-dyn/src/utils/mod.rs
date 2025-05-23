@@ -21,5 +21,10 @@ pub(crate) mod onnx {
         pub(crate) mod constant_fold;
         pub(crate) mod fuse;
     }
+    pub(crate) mod parse_args {
+        pub(crate) mod parse;
+        pub(crate) mod affine_grid;
+        pub(crate) mod squeeze;
+    }
 }
 pub(crate) mod threadpool;

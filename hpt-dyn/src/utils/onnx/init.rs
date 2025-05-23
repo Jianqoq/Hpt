@@ -12,7 +12,7 @@ use super::{
         AutoPad, Base, BatchNormalization, Binary, Concat, Elu, Expand, Flatten, Gather, Gemm,
         LayerNormalization, Lstm, Matmul, Operator, Permute, Pooling, Reduce, Reshape, Slice,
         Softmax, Squeeze, TensorFormat, Unary,
-    },
+    }, parse_args::{parse::{Parse, ParseArgs}, squeeze::SqueezeArgs},
 };
 use crate::{
     Tensor,
@@ -753,6 +753,7 @@ pub(crate) fn squeeze_init(
     initializer_map: &mut HashMap<String, Tensor>,
     formats: &mut HashMap<String, TensorFormat>,
 ) -> Vec<Operator> {
+    let args = SqueezeArgs::parse(node);
     let input_name = node.input[0].as_str();
     let axes = node.input[1].as_str();
     let axes_tensor = initializer_map.get(axes).expect("axes tensor not found");
