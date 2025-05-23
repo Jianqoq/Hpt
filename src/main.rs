@@ -7,7 +7,7 @@ fn main() -> anyhow::Result<()> {
     let mut map = HashMap::new();
     map.insert(
         "input".to_string(),
-        DynTensor::ones(&[128, 256, 128], DType::F32, Device::Cpu)?,
+        DynTensor::ones(&[128, 128, 512], DType::F32, Device::Cpu)?,
         // DynTensor::ones(&[128, 128], DType::F32, Device::Cpu)?,
     );
     let initialized = model.initialize()?;
