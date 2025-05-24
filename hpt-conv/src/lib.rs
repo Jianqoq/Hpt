@@ -1,6 +1,8 @@
+use std::ops::{AddAssign, Deref, DerefMut, Index, IndexMut};
 
+pub(crate) mod microkernel_trait;
+pub(crate) mod microkernels;
 
-pub(crate) mod template;
 pub(crate) mod type_kernels {
     #[cfg(feature = "bf16")]
     pub(crate) mod bf16_kernels;
@@ -33,15 +35,6 @@ pub(crate) mod type_kernels {
     pub(crate) mod u64_kernels;
     #[cfg(feature = "u8")]
     pub(crate) mod u8_kernels;
-}
-
-pub(crate) mod matmul;
-pub(crate) mod microkernel_trait;
-pub(crate) mod microkernels;
-pub(crate) mod utils;
-
-pub(crate) const fn vec_size<T>() -> usize {
-    REG_BITS / 8 / std::mem::size_of::<T>()
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -174,15 +167,4 @@ impl<T> DerefMut for Pointer<T> {
 unsafe impl<T> Send for Pointer<T> {}
 unsafe impl<T> Sync for Pointer<T> {}
 
-pub(crate) const REG_BITS: usize = std::mem::size_of::<F32Vec>() * 8;
-
-use std::ops::{AddAssign, Deref, DerefMut, Index, IndexMut};
-
-pub use crate::microkernel_trait::MatmulMicroKernel;
-
 pub(crate) use matconv_simd::*;
-pub use matmul::{addmm, matmul, prepack_rhs};
-
-pub use utils::{PrePackedRhs, kernel_params};
-
-static ALIGN: usize = 128;

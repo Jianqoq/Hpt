@@ -127,8 +127,8 @@ pub(crate) fn pack_kernel<T: CommonBounds>(
                     for m in 0..kw {
                         for ii in 0..icb {
                             for nr in 0..ocr {
-                                packed_kernel[local_idx] =
-                                    kernel[n * ks0 + m * ks1 + (i + ii) * ks2 + (jj + j + nr) * ks3];
+                                packed_kernel[local_idx] = kernel
+                                    [n * ks0 + m * ks1 + (i + ii) * ks2 + (jj + j + nr) * ks3];
                                 local_idx += 1;
                             }
                             for _ in ocr..or {
@@ -255,6 +255,30 @@ pub(crate) fn create_packed_kernel(
     Ok(buffer)
 }
 
+pub(crate) fn create_packed_kernel_raw(
+    dtype: DType,
+    kh: i64,
+    kw: i64,
+    in_channels: i64,
+    out_channels: i64,
+    oc: i64,
+    nr: i64,
+) -> (Pointer<u8>, std::alloc::Layout) {
+    let packed_kernel_size = kh
+        * kw
+        * in_channels
+        * ((out_channels as usize).div_ceil(oc as usize) as i64)
+        * ((oc as usize).div_ceil(nr as usize) as i64)
+        * (nr as i64);
+
+    let layout =
+        std::alloc::Layout::from_size_align(packed_kernel_size as usize * dtype.sizeof(), ALIGN)
+            .unwrap();
+    let buffer = unsafe { std::alloc::alloc(layout) };
+
+    (Pointer::new(buffer as *mut u8, packed_kernel_size), layout)
+}
+
 pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
     batch: i64,
     kh: i64,
@@ -288,27 +312,23 @@ const CACHE_INFO: OnceCell<[CacheInfo; 3]> = OnceCell::new();
 pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
     #[cfg(target_arch = "x86_64")]
     {
-        use raw_cpuid::{ CacheType, CpuId };
+        use raw_cpuid::{CacheType, CpuId};
         *CACHE_INFO.get_or_init(|| {
             let cpuid = CpuId::new();
-            let mut cache_info = [
-                CacheInfo {
-                    bytes: 0,
-                    associativity: 0,
-                    cache_line_bytes: 0,
-                };
-                3
-            ];
+            let mut cache_info = [CacheInfo {
+                bytes: 0,
+                associativity: 0,
+                cache_line_bytes: 0,
+            }; 3];
             if let Some(cparams) = cpuid.get_cache_parameters() {
                 for cache in cparams {
-                    let size =
-                        cache.associativity() *
-                        cache.physical_line_partitions() *
-                        cache.coherency_line_size() *
-                        cache.sets();
-                    let valid_cache =
-                        (cache.cache_type() == CacheType::Data ||
-                            cache.cache_type() == CacheType::Unified) && cache.level() <= 3;
+                    let size = cache.associativity()
+                        * cache.physical_line_partitions()
+                        * cache.coherency_line_size()
+                        * cache.sets();
+                    let valid_cache = (cache.cache_type() == CacheType::Data
+                        || cache.cache_type() == CacheType::Unified)
+                        && cache.level() <= 3;
                     if valid_cache {
                         let info = CacheInfo {
                             bytes: size,
@@ -328,14 +348,11 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
     {
         use std::ffi::CString;
         *CACHE_INFO.get_or_init(|| {
-            let mut cache_info = [
-                CacheInfo {
-                    bytes: 0,
-                    associativity: 0,
-                    cache_line_bytes: 0,
-                };
-                3
-            ];
+            let mut cache_info = [CacheInfo {
+                bytes: 0,
+                associativity: 0,
+                cache_line_bytes: 0,
+            }; 3];
             for level in 1..=3 {
                 let mut size: u64 = 0;
                 let mut line_size: u64 = 0;
@@ -356,7 +373,7 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
                         &mut size as *mut _ as *mut libc::c_void,
                         &mut size_len,
                         std::ptr::null_mut(),
-                        0
+                        0,
                     );
                 }
 
@@ -366,7 +383,7 @@ pub(crate) fn get_cache_info() -> [CacheInfo; 3] {
                         &mut line_size as *mut _ as *mut libc::c_void,
                         &mut line_size_len,
                         std::ptr::null_mut(),
-                        0
+                        0,
                     );
                 }
                 cache_info[level - 1] = CacheInfo {
@@ -387,7 +404,7 @@ pub fn _kernel_params(
     k: usize,
     mr: usize,
     nr: usize,
-    sizeof: usize
+    sizeof: usize,
 ) -> KernelParams {
     #[inline]
     fn round_down(a: usize, b: usize) -> usize {

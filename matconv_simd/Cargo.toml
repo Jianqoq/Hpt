@@ -1,0 +1,8 @@
+[package]
+name = "matconv_simd"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+half = { workspace = true }
+num-complex = { workspace = true }

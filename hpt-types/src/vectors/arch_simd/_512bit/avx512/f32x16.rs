@@ -6,7 +6,7 @@ use crate::arch_simd::sleef::libm::sleefsimdsp::{
     xtanf_u1, xtanhf, xtruncf,
 };
 use crate::convertion::VecConvertor;
-use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xfloorf};
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xfloorf, xsigmoid};
 use crate::traits::{SimdCompare, SimdMath, SimdSelect, VecTrait};
 use crate::type_promote::Eval2;
 use crate::vectors::arch_simd::_512bit::u32x16;
@@ -424,7 +424,7 @@ impl SimdMath<f32> for f32x16 {
     }
     #[inline(always)]
     fn sigmoid(self) -> Self {
-        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+        unsafe { Self(xsigmoid(self.0)) }
     }
     #[inline(always)]
     fn softsign(self) -> Self {

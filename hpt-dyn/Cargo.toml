@@ -40,6 +40,8 @@ crossbeam = { workspace = true }
 core_affinity = { workspace = true }
 raw-cpuid = { workspace = true }
 libc = { workspace = true }
+matconv-simd = { path = "../matconv_simd", version = "0.1.0" }
+
 [build-dependencies]
 prost-build = "0.13.5"
 

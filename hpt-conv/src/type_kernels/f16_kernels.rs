@@ -1,8 +1,6 @@
 use crate::F16Vec;
 use crate::F32Vec;
-use crate::microkernel_trait::MatmulMicroKernel;
-use num_traits::ConstZero;
-use std::ops::Add;
+use crate::microkernel_trait::Conv2dMicroKernel;
 
 #[cfg(target_feature = "neon")]
 impl MatmulMicroKernel for half::f16 {
@@ -12,7 +10,7 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<Self>,
         crate::Pointer<Self>,
@@ -22,7 +20,7 @@ impl MatmulMicroKernel for half::f16 {
         usize,
         usize,
         i64,
-        bool
+        bool,
     ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;
@@ -40,10 +38,10 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
+        G: Fn(F16Vec, usize, usize) -> F16Vec,
     >(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<Self>,
         crate::Pointer<Self>,
@@ -58,7 +56,7 @@ impl MatmulMicroKernel for half::f16 {
         usize,
         usize,
         F,
-        G
+        G,
     ) {
         use crate::define_neon_post_op_matmul_micro_kernel;
         use crate::define_post_op_matmul_micro_kernel;
@@ -89,7 +87,7 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_mixed_precision_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<f32>,
         crate::Pointer<f32>,
@@ -101,7 +99,7 @@ impl MatmulMicroKernel for half::f16 {
         i64,
         bool,
         fn(*mut F16Vec, *const F32Vec),
-        fn(&mut half::f16, &f32)
+        fn(&mut half::f16, &f32),
     ) {
         use crate::define_mixed_precision_matmul_micro_kernel;
         use crate::define_neon_mixed_precision_matmul_micro_kernel;
@@ -155,10 +153,10 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_mixed_precision_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
+        G: Fn(F16Vec, usize, usize) -> F16Vec,
     >(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<f32>,
         crate::Pointer<f32>,
@@ -175,7 +173,7 @@ impl MatmulMicroKernel for half::f16 {
         fn(*mut F16Vec, *const F32Vec),
         fn(&mut Self, &f32),
         F,
-        G
+        G,
     ) {
         use crate::define_mixed_precision_post_op_matmul_micro_kernel;
         use crate::define_neon_mixed_precision_post_op_matmul_micro_kernel;
@@ -234,7 +232,7 @@ impl MatmulMicroKernel for half::f16 {
         n: usize,
         k: usize,
         ldb: i64,
-        lhs_col_stride: i64
+        lhs_col_stride: i64,
     ) {
         use crate::microkernels::gemv_microkernel_impl;
         gemv_microkernel_impl!(8);
@@ -254,7 +252,7 @@ impl MatmulMicroKernel for half::f16 {
         ldb: i64,
         lhs_col_stride: i64,
         fn(*mut Self::SelfVec, *const Self::MixedVec),
-        fn(&mut Self, &Self::MixedType)
+        fn(&mut Self, &Self::MixedType),
     ) {
         use crate::microkernels::gemv_microkernel_mp_impl;
         gemv_microkernel_mp_impl!(4, 8, 2);
@@ -267,7 +265,7 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_gemv_kernel_mp_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+        G: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec,
     >() -> fn(
         a: crate::Pointer<Self::MixedType>,
         b: crate::Pointer<Self::MixedType>,
@@ -281,7 +279,7 @@ impl MatmulMicroKernel for half::f16 {
         fn(*mut Self::SelfVec, *const Self::MixedVec),
         fn(&mut Self, &Self::MixedType),
         F,
-        G
+        G,
     ) {
         use crate::microkernels::gemv_microkernel_mp_post_op_impl;
         gemv_microkernel_mp_post_op_impl!(4, 8, 2);
@@ -290,7 +288,7 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_gemv_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
+        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec,
     >() -> fn(
         a: crate::Pointer<Self>,
         b: crate::Pointer<Self>,
@@ -302,7 +300,7 @@ impl MatmulMicroKernel for half::f16 {
         m_offset: usize,
         n_offset: usize,
         post_op: F,
-        post_op_vec: F2
+        post_op_vec: F2,
     ) {
         use crate::microkernels::gemv_microkernel_post_op_impl;
         gemv_microkernel_post_op_impl!(8);
@@ -317,7 +315,7 @@ impl MatmulMicroKernel for half::f16 {
     type MixedVec = F32Vec;
     fn get_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<Self>,
         crate::Pointer<Self>,
@@ -327,7 +325,7 @@ impl MatmulMicroKernel for half::f16 {
         usize,
         usize,
         i64,
-        bool
+        bool,
     ) {
         use crate::define_matmul_micro_kernel;
         assert_eq!(nr, 2);
@@ -342,10 +340,10 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
+        G: Fn(F16Vec, usize, usize) -> F16Vec,
     >(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<Self>,
         crate::Pointer<Self>,
@@ -360,7 +358,7 @@ impl MatmulMicroKernel for half::f16 {
         usize,
         usize,
         F,
-        G
+        G,
     ) {
         use crate::define_post_op_matmul_micro_kernel;
         assert_eq!(nr, 2);
@@ -383,7 +381,7 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_mixed_precision_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<f32>,
         crate::Pointer<f32>,
@@ -395,7 +393,7 @@ impl MatmulMicroKernel for half::f16 {
         i64,
         bool,
         fn(*mut F16Vec, *const F32Vec),
-        fn(&mut half::f16, &f32)
+        fn(&mut half::f16, &f32),
     ) {
         use crate::define_mixed_precision_matmul_micro_kernel;
         assert_eq!(nr, 1);
@@ -470,10 +468,10 @@ impl MatmulMicroKernel for half::f16 {
 
     fn get_mixed_precision_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
+        G: Fn(F16Vec, usize, usize) -> F16Vec,
     >(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
         crate::Pointer<f32>,
         crate::Pointer<f32>,
@@ -490,7 +488,7 @@ impl MatmulMicroKernel for half::f16 {
         fn(*mut F16Vec, *const F32Vec),
         fn(&mut Self, &f32),
         F,
-        G
+        G,
     ) {
         use crate::define_mixed_precision_post_op_matmul_micro_kernel;
         assert_eq!(nr, 1);
@@ -571,257 +569,80 @@ impl MatmulMicroKernel for half::f16 {
 }
 
 #[cfg(target_feature = "avx512f")]
-impl MatmulMicroKernel for half::f16 {
+impl Conv2dMicroKernel for half::f16 {
     type SelfVec = F16Vec;
     type MixedType = f32;
     type MixedVec = F32Vec;
-    fn get_kernel(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool
-    ) {
-        use crate::define_matmul_micro_kernel;
-        assert_eq!(nr, 2);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x1, 2, 1);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x2, 2, 2);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x3, 2, 3);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x4, 2, 4);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x5, 2, 5);
-        define_matmul_micro_kernel!(half::f16, F16Vec, x2x6, 2, 6);
-        [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6][mr - 1]
-    }
-
-    fn get_kernel_with_post_op<
-        F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
-    >(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        crate::Pointer<Self>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        bool,
-        usize,
-        usize,
-        F,
-        G
-    ) {
-        use crate::define_post_op_matmul_micro_kernel;
-        assert_eq!(nr, 2);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x1, 2, 1);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x2, 2, 2);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x3, 2, 3);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x4, 2, 4);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x5, 2, 5);
-        define_post_op_matmul_micro_kernel!(half::f16, F16Vec, x2x6, 2, 6);
-        [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6][mr - 1]
-    }
-
-    fn get_max_mr() -> usize {
-        6
-    }
-
-    fn get_max_nr() -> usize {
-        2
-    }
-
     fn get_mixed_precision_kernel(
         nr: usize,
-        mr: usize
+        mr: usize,
     ) -> fn(
-        crate::Pointer<f32>,
-        crate::Pointer<f32>,
-        crate::Pointer<half::f16>,
-        i64,
-        i64,
-        usize,
-        usize,
-        i64,
-        bool,
-        fn(*mut F16Vec, *const F32Vec),
-        fn(&mut half::f16, &f32)
-    ) {
-        use crate::define_mixed_precision_matmul_micro_kernel;
-        assert_eq!(nr, 1);
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x1,
-            1,
-            1,
-            2,
-            2
-        );
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x2,
-            1,
-            2,
-            2,
-            2
-        );
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x3,
-            1,
-            3,
-            2,
-            2
-        );
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x4,
-            1,
-            4,
-            2,
-            2
-        );
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x5,
-            1,
-            5,
-            2,
-            2
-        );
-        define_mixed_precision_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x6,
-            1,
-            6,
-            2,
-            2
-        );
-        [x1x1, x1x2, x1x3, x1x4, x1x5, x1x6][mr - 1]
-    }
-
-    fn get_mixed_precision_kernel_with_post_op<
-        F: Fn(Self, usize, usize) -> Self,
-        G: Fn(F16Vec, usize, usize) -> F16Vec
-    >(
-        nr: usize,
-        mr: usize
-    ) -> fn(
-        crate::Pointer<f32>,
-        crate::Pointer<f32>,
+        crate::Pointer<Self::MixedType>,
+        crate::Pointer<Self::MixedType>,
         crate::Pointer<Self>,
         i64,
         i64,
-        usize,
-        usize,
-        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
         bool,
-        bool,
-        usize,
-        usize,
-        fn(*mut F16Vec, *const F32Vec),
-        fn(&mut Self, &f32),
-        F,
-        G
+        fn(*mut Self::MixedVec, *const Self),
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(Self) -> Self::MixedType,
+        fn(&mut Self, &Self::MixedType),
     ) {
-        use crate::define_mixed_precision_post_op_matmul_micro_kernel;
+        use crate::conv2d_mixed_precision_micro_kernel;
         assert_eq!(nr, 1);
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x1,
-            1,
-            1,
-            2,
-            2
-        );
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x2,
-            1,
-            2,
-            2,
-            2
-        );
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x3,
-            1,
-            3,
-            2,
-            2
-        );
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x4,
-            1,
-            4,
-            2,
-            2
-        );
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x5,
-            1,
-            5,
-            2,
-            2
-        );
-        define_mixed_precision_post_op_matmul_micro_kernel!(
-            half::f16,
-            F16Vec,
-            f32,
-            F32Vec,
-            x1x6,
-            1,
-            6,
-            2,
-            2
-        );
+        conv2d_mixed_precision_micro_kernel!(x1x1, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 1, 2);
+        conv2d_mixed_precision_micro_kernel!(x1x2, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 2, 2);
+        conv2d_mixed_precision_micro_kernel!(x1x3, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 3, 2);
+        conv2d_mixed_precision_micro_kernel!(x1x4, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 4, 2);
+        conv2d_mixed_precision_micro_kernel!(x1x5, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 5, 2);
+        conv2d_mixed_precision_micro_kernel!(x1x6, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 6, 2);
         [x1x1, x1x2, x1x3, x1x4, x1x5, x1x6][mr - 1]
     }
+
+    fn get_mixed_precision_kernel_with_padding(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        crate::Pointer<Self::MixedType>,
+        crate::Pointer<Self::MixedType>,
+        crate::Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
+        fn(*mut Self::MixedVec, *const Self),
+        fn(*mut Self::SelfVec, *const Self::MixedVec),
+        fn(Self) -> Self::MixedType,
+        fn(&mut Self, &Self::MixedType),
+    ) {
+        use crate::conv2d_mixed_precision_micro_kernel_with_padding;
+        assert_eq!(nr, 1);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x1, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 1, 2);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x2, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 2, 2);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x3, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 3, 2);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x4, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 4, 2);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x5, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 5, 2);
+        conv2d_mixed_precision_micro_kernel_with_padding!(x1x6, half::f16, crate::F16Vec, f32, crate::F32Vec, 1, 6, 2);
+        [x1x1, x1x2, x1x3, x1x4, x1x5, x1x6][mr - 1]
+    }
+
     fn get_max_mixed_precision_nr() -> usize {
         1
     }
@@ -829,38 +650,70 @@ impl MatmulMicroKernel for half::f16 {
         6
     }
 
-    fn get_gemv_kernel() -> fn(
-        a: crate::Pointer<Self>,
-        b: crate::Pointer<Self>,
-        c: crate::Pointer<Self>,
-        n: usize,
-        k: usize,
-        ldb: i64,
-        lhs_col_stride: i64
+    fn get_kernel(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
     ) {
-        todo!()
+        use crate::conv2d_micro_kernel;
+        assert_eq!(nr, 2);
+        conv2d_micro_kernel!(x2x1, half::f16, crate::F16Vec, 2, 1);
+        conv2d_micro_kernel!(x2x2, half::f16, crate::F16Vec, 2, 2);
+        conv2d_micro_kernel!(x2x3, half::f16, crate::F16Vec, 2, 3);
+        conv2d_micro_kernel!(x2x4, half::f16, crate::F16Vec, 2, 4);
+        conv2d_micro_kernel!(x2x5, half::f16, crate::F16Vec, 2, 5);
+        conv2d_micro_kernel!(x2x6, half::f16, crate::F16Vec, 2, 6);
+        conv2d_micro_kernel!(x2x7, half::f16, crate::F16Vec, 2, 7);
+        conv2d_micro_kernel!(x2x8, half::f16, crate::F16Vec, 2, 8);
+        return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1];
     }
 
-    fn get_gemv_nr() -> usize {
-        todo!()
-    }
-    
-    fn get_gemv_kernel_with_post_op<
-        F: Fn(Self, usize, usize) -> Self,
-        F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
-    >() -> fn(
-        a: crate::Pointer<Self>,
-        b: crate::Pointer<Self>,
-        c: crate::Pointer<Self>,
-        n: usize,
-        k: usize,
-        ldb: i64,
-        lhs_col_stride: i64,
-        m_offset: usize,
-        n_offset: usize,
-        post_op: F,
-        post_op_vec: F2
+    fn get_kernel_with_padding(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        i64,
+        i64,
+        &mut i64,
+        [i64; 3],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        [i64; 2],
+        bool,
     ) {
-        todo!()
+        use crate::conv2d_micro_kernel_with_padding;
+        use std::ops::Add;
+        assert_eq!(nr, 2);
+        conv2d_micro_kernel_with_padding!(x2x1, half::f16, crate::F16Vec, 2, 1);
+        conv2d_micro_kernel_with_padding!(x2x2, half::f16, crate::F16Vec, 2, 2);
+        conv2d_micro_kernel_with_padding!(x2x3, half::f16, crate::F16Vec, 2, 3);
+        conv2d_micro_kernel_with_padding!(x2x4, half::f16, crate::F16Vec, 2, 4);
+        conv2d_micro_kernel_with_padding!(x2x5, half::f16, crate::F16Vec, 2, 5);
+        conv2d_micro_kernel_with_padding!(x2x6, half::f16, crate::F16Vec, 2, 6);
+        conv2d_micro_kernel_with_padding!(x2x7, half::f16, crate::F16Vec, 2, 7);
+        conv2d_micro_kernel_with_padding!(x2x8, half::f16, crate::F16Vec, 2, 8);
+        return [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1];
     }
 }

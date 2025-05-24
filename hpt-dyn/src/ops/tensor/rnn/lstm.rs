@@ -13,7 +13,7 @@ use hpt_common::{
     slice::slice_process,
 };
 use hpt_macros::select;
-use hpt_matmul::Zero;
+use matconv_simd::Zero;
 use hpt_traits::tensor::{ CommonBounds, TensorInfo };
 use hpt_types::{ dtype::{ DType, ToDType }, type_promote::FloatOutUnary };
 use rayon::iter::{ IntoParallelIterator, ParallelIterator };

@@ -1,6 +1,7 @@
 use hpt_common::error::base::TensorError;
 use hpt_common::layout::layout::Layout;
 use hpt_common::shape::shape::Shape;
+use hpt_matmul::PrePackedRhs;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::ToDType;
@@ -26,6 +27,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     out_channels: i64,
     kh: i64,
     kw: i64,
+    prepacked_rhs: Option<&PrePackedRhs>,
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(T::Vec) -> T::Vec>,
     mut output: Tensor

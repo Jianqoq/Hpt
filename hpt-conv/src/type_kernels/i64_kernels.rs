@@ -8,6 +8,10 @@ use crate::type_kernels::common::avx2_kernels;
 #[cfg(target_feature = "avx512f")]
 use crate::type_kernels::common::avx512_kernels;
 
+impl crate::Zero for i64 {
+    const ZERO: Self = 0;
+}
+
 #[cfg(target_feature = "neon")]
 impl MatmulMicroKernel for i64 {
     fn get_kernel(

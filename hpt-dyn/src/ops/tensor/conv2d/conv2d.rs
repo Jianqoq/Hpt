@@ -1,5 +1,6 @@
 use hpt_common::error::base::TensorError;
 use hpt_common::error::shape::ShapeError;
+use hpt_matmul::PrePackedRhs;
 use hpt_traits::tensor::CommonBounds;
 use hpt_traits::tensor::TensorInfo;
 use hpt_types::dtype::DType;
@@ -25,10 +26,10 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
     steps: [i64; 2],
     padding: [(i64, i64); 2],
     dilation: [i64; 2],
+    prepacked_rhs: Option<[PrePackedRhs; 2]>,
     post_scalar: Option<fn(T) -> T>,
     post_vec: Option<fn(<T>::Vec) -> <T>::Vec>,
-) -> Result<Tensor, TensorError>
-{
+) -> Result<Tensor, TensorError> {
     let input = if !input.is_contiguous() || input.parent.is_some() {
         input.contiguous()?
     } else {
@@ -107,6 +108,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
             out_channels,
             kh,
             kw,
+            prepacked_rhs.as_ref().map(|x| &x[0]),
             post_scalar,
             post_vec,
             output,
@@ -127,6 +129,7 @@ pub(crate) fn conv2d<T: CommonBounds + Conv2dMicroKernel + ToDType>(
             out_channels,
             kh,
             kw,
+            prepacked_rhs.as_ref().map(|x| &x[1]),
             post_scalar,
             post_vec,
             output,
@@ -217,8 +220,7 @@ impl Tensor {
         if let Some(bias) = bias {
             assert_eq!(bias.dtype, t_dtype);
         }
-        if t_dtype == DType::F16
-            && (cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
+        if t_dtype == DType::F16 && (cfg!(target_feature = "neon") && cfg!(target_feature = "fp16"))
         {
             conv2d_mp::conv2d_mp::<T>(
                 self,
@@ -249,6 +251,7 @@ impl Tensor {
                 steps,
                 padding,
                 dilation,
+                None,
                 post_scalar,
                 post_vec,
             )
@@ -269,10 +272,7 @@ impl Tensor {
         dilation: [i64; 2],
     ) -> Result<Tensor, TensorError>
     where
-        T: CommonBounds
-            + Conv2dMicroKernel
-            + Cast<<T as NormalOutPromote>::Intermediate>
-            + ToDType,
+        T: CommonBounds + Conv2dMicroKernel + Cast<<T as NormalOutPromote>::Intermediate> + ToDType,
         <T as NormalOutPromote>::Intermediate: CommonBounds + Cast<T>,
         T::Vec: FloatOutBinary<Output = T::Vec> + FloatOutUnary<Output = T::Vec>,
         T: FloatOutBinary<Output = T> + FloatOutUnary<Output = T>,

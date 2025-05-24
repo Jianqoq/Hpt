@@ -48,6 +48,7 @@ pub(super) fn run_fwd<'a>(
             Operator::Conv2d(conv2d) => {
                 let now = std::time::Instant::now();
                 conv_fwd(&conv2d.base, tensors, node_degree)?;
+                // println!("conv2d: {:?}", now.elapsed());
                 total_conv2d += now.elapsed();
             },
             Operator::Conv2dInteger(conv2d) => conv_fwd(&conv2d.base, tensors, node_degree)?,
@@ -163,10 +164,11 @@ pub(super) fn run_fwd<'a>(
             Operator::Conv2dFused(base) => {
                 let now = std::time::Instant::now();
                 conv_fused_fwd(&base.base, tensors, node_degree)?;
+                // println!("conv2d_fused: {:?}", now.elapsed());
                 total_conv2d += now.elapsed();
             },
         }
     }
-    // println!("total_conv2d: {:?}, total_pooling: {:?}", total_conv2d, total_pooling);
+    println!("total_conv2d: {:?}, total_pooling: {:?}", total_conv2d, total_pooling);
     Ok(())
 }

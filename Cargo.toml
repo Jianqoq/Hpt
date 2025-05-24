@@ -20,7 +20,7 @@ members = [
     "hpt-codegen",
     "hpt-cudakernels",
     "hpt-examples",
-    "hpt-dyn", "hpt-matmul", "hpt-conv",
+    "hpt-dyn", "hpt-matmul", "hpt-conv", "matconv_simd",
 ]
 
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]

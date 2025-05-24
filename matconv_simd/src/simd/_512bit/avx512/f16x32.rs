@@ -4,7 +4,7 @@ use crate::simd::_512bit::common::f32x16::f32x16;
 impl f16x32 {
     /// convert to [f32x8; 2]
     #[inline(always)]
-    pub(crate) fn to_2_f32vec(self) -> [f32x16; 2] {
+    pub fn to_2_f32vec(self) -> [f32x16; 2] {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -30,7 +30,7 @@ impl f16x32 {
     #[allow(unused)]
     /// convert to f32x8
     #[inline(always)]
-    pub(crate) fn high_to_f32vec(self) -> f32x16 {
+    pub fn high_to_f32vec(self) -> f32x16 {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {
@@ -52,7 +52,7 @@ impl f16x32 {
 
     /// convert from 2 f32x4
     #[inline(always)]
-    pub(crate) fn from_2_f32vec(val: [f32x16; 2]) -> Self {
+    pub fn from_2_f32vec(val: [f32x16; 2]) -> Self {
         unsafe {
             #[cfg(target_feature = "f16c")]
             {

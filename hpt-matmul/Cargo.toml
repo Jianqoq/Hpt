@@ -16,6 +16,7 @@ num-integer = { workspace = true }
 rayon = {workspace = true}
 num_cpus = { workspace = true }
 raw-cpuid = { workspace = true }
+matconv_simd = { path = "../matconv_simd" }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = { workspace = true }

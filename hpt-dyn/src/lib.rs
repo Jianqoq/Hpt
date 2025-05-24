@@ -12,7 +12,7 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(4);
 static ALIGN: usize = 128;
 
 pub fn current_num_threads() -> usize {
-    rayon::current_num_threads()
+    num_cpus::get_physical()
 }
 
 pub fn set_num_threads(num_threads: usize) {

@@ -639,9 +639,9 @@ pub(crate) fn pack_b<T: Copy + Zero, TVec>(
 #[derive(Debug)]
 pub struct PrePackedRhs {
     pub buffer: (Pointer<u8>, std::alloc::Layout),
-    pub(crate) kc: usize,
-    pub(crate) nr: usize,
-    pub(crate) nc: usize,
+    pub kc: usize,
+    pub nr: usize,
+    pub nc: usize,
 }
 
 impl Drop for PrePackedRhs {

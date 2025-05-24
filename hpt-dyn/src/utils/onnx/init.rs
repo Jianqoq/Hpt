@@ -12,7 +12,8 @@ use super::{
         AutoPad, Base, BatchNormalization, Binary, Concat, Elu, Expand, Flatten, Gather, Gemm,
         LayerNormalization, Lstm, Matmul, Operator, Permute, Pooling, Reduce, Reshape, Slice,
         Softmax, Squeeze, TensorFormat, Unary,
-    }, parse_args::{parse::{Parse, ParseArgs}, squeeze::SqueezeArgs},
+    },
+    parse_args::{parse::Parse, squeeze::SqueezeArgs},
 };
 use crate::{
     Tensor,

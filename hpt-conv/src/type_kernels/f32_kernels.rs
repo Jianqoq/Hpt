@@ -1,30 +1,43 @@
-use crate::microkernel_trait::MatmulMicroKernel;
-use crate::I64Vec;
-use num_traits::ConstZero;
+use crate::microkernel_trait::Conv2dMicroKernel;
+use crate::F32Vec;
 use std::ops::Add;
-
+use matconv_simd::Zero;
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::type_kernels::common::avx2_kernels;
+
 #[cfg(target_feature = "avx512f")]
 use crate::type_kernels::common::avx512_kernels;
 
 #[cfg(target_feature = "neon")]
-impl MatmulMicroKernel for i64 {
+impl MatmulMicroKernel for f32 {
+    #[allow(unused_variables)]
     fn get_kernel(
         nr: usize,
         mr: usize
-    ) -> fn(crate::Pointer<Self>, crate::Pointer<Self>, crate::Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+    ) -> fn(
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        crate::Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool
+    ) {
         use crate::define_matmul_micro_kernel;
         use crate::define_neon_matmul_micro_kernel;
-        assert_eq!(nr, 8);
-        define_matmul_micro_kernel!(i64, I64Vec, x8x1, 8, 1);
-        define_neon_matmul_micro_kernel!(i64, I64Vec, x8x2, 8, 2);
-        [x8x1, x8x2][mr - 1]
+        define_matmul_micro_kernel!(f32, F32Vec, x4x1, 4, 1);
+        define_matmul_micro_kernel!(f32, F32Vec, x4x2, 4, 2);
+        define_matmul_micro_kernel!(f32, F32Vec, x4x3, 4, 3);
+        define_neon_matmul_micro_kernel!(f32, F32Vec, x4x4, 4, 4);
+        [x4x1, x4x2, x4x3, x4x4][mr - 1]
     }
 
+    #[allow(unused_variables)]
     fn get_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
-        G: Fn(I64Vec, usize, usize) -> I64Vec
+        G: Fn(F32Vec, usize, usize) -> F32Vec
     >(
         nr: usize,
         mr: usize
@@ -46,26 +59,27 @@ impl MatmulMicroKernel for i64 {
     ) {
         use crate::define_neon_post_op_matmul_micro_kernel;
         use crate::define_post_op_matmul_micro_kernel;
-        assert_eq!(nr, 8);
-        define_post_op_matmul_micro_kernel!(i64, I64Vec, x8x1, 8, 1);
-        define_neon_post_op_matmul_micro_kernel!(i64, I64Vec, x8x2, 8, 2);
-        [x8x1, x8x2][mr - 1]
+        define_post_op_matmul_micro_kernel!(f32, F32Vec, x4x1, 4, 1);
+        define_post_op_matmul_micro_kernel!(f32, F32Vec, x4x2, 4, 2);
+        define_post_op_matmul_micro_kernel!(f32, F32Vec, x4x3, 4, 3);
+        define_neon_post_op_matmul_micro_kernel!(f32, F32Vec, x4x4, 4, 4);
+        [x4x1, x4x2, x4x3, x4x4][mr - 1]
     }
 
     fn get_max_mr() -> usize {
-        2
+        4
     }
 
     fn get_max_nr() -> usize {
-        8
+        4
     }
-    
-    type SelfVec = I64Vec;
-    
-    type MixedType = i64;
-    
-    type MixedVec = I64Vec;
-    
+
+    type SelfVec = F32Vec;
+
+    type MixedType = f32;
+
+    type MixedVec = F32Vec;
+
     fn get_gemv_kernel() -> fn(
         a: crate::Pointer<Self>,
         b: crate::Pointer<Self>,
@@ -75,13 +89,15 @@ impl MatmulMicroKernel for i64 {
         ldb: i64,
         lhs_col_stride: i64
     ) {
-        todo!()
-    }
-    
-    fn get_gemv_nr() -> usize {
-        todo!()
+        use crate::microkernels::gemv_microkernel_impl;
+        gemv_microkernel_impl!(8);
+        gemv_microkernel::<f32, F32Vec>
     }
 
+    fn get_gemv_nr() -> usize {
+        8
+    }
+    
     fn get_gemv_kernel_with_post_op<
         F: Fn(Self, usize, usize) -> Self,
         F2: Fn(Self::SelfVec, usize, usize) -> Self::SelfVec
@@ -98,12 +114,14 @@ impl MatmulMicroKernel for i64 {
         post_op: F,
         post_op_vec: F2
     ) {
-        todo!()
+        use crate::microkernels::gemv_microkernel_post_op_impl;
+        gemv_microkernel_post_op_impl!(8);
+        gemv_microkernel_post_op::<f32, F32Vec, F, F2>
     }
 }
 
 #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
-avx2_kernels!(i64, I64Vec);
+avx2_kernels!(f32, F32Vec);
 
 #[cfg(target_feature = "avx512f")]
-avx512_kernels!(i64, I64Vec);
+avx512_kernels!(f32, F32Vec);
