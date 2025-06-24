@@ -1,7 +1,7 @@
 use crate::{
     convertion::VecConvertor,
-    traits::{SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2},
+    traits::{ SimdMath, SimdSelect, VecTrait },
+    type_promote::{ Eval2, FloatOutBinary2 },
 };
 
 use std::arch::aarch64::*;
@@ -19,8 +19,8 @@ impl PartialEq for u64x2 {
     fn eq(&self, other: &Self) -> bool {
         unsafe {
             let cmp = vceqq_u64(self.0, other.0);
-            vgetq_lane_u64(cmp, 0) == 0xffffffffffffffff
-                && vgetq_lane_u64(cmp, 1) == 0xffffffffffffffff
+            vgetq_lane_u64(cmp, 0) == 0xffffffffffffffff &&
+                vgetq_lane_u64(cmp, 1) == 0xffffffffffffffff
         }
     }
 }
@@ -35,12 +35,6 @@ impl Default for u64x2 {
 impl VecTrait<u64> for u64x2 {
     const SIZE: usize = 2;
     type Base = u64;
-    #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u64]) {
-        unsafe {
-            self.0 = vld1q_u64(slice.as_ptr());
-        }
-    }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
@@ -73,10 +67,10 @@ impl VecTrait<u64> for u64x2 {
     }
 }
 
-impl SimdSelect<u64x2> for u64x2 {
+impl SimdSelect<u64x2> for i64x2 {
     #[inline(always)]
     fn select(&self, true_val: u64x2, false_val: u64x2) -> u64x2 {
-        unsafe { u64x2(vbslq_u64(self.0, true_val.0, false_val.0)) }
+        unsafe { u64x2(vbslq_u64(vreinterpretq_u64_s64(self.0), true_val.0, false_val.0)) }
     }
 }
 
@@ -333,10 +327,9 @@ impl Eval2 for u64x2 {
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
         unsafe {
-            i64x2(veorq_s64(
-                vreinterpretq_s64_u64(vceqq_u64(self.0, vdupq_n_u64(0))),
-                vdupq_n_s64(-1),
-            ))
+            i64x2(
+                veorq_s64(vreinterpretq_s64_u64(vceqq_u64(self.0, vdupq_n_u64(0))), vdupq_n_s64(-1))
+            )
         }
     }
 

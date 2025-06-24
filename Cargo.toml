@@ -20,6 +20,7 @@ members = [
     "hpt-codegen",
     "hpt-cudakernels",
     "hpt-examples",
+    "hpt-dyn", "hpt-matmul", "hpt-conv", "matconv_simd",
 ]
 
 exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
@@ -27,9 +28,18 @@ exclude = ["hpt-bench", "hpt-tests", "hpt-codegen", "hpt-examples"]
 [dependencies]
 hpt = { path = "./hpt", features = ["track_caller"] }
 anyhow = { workspace = true }
-rand = { workspace = true }
-ndarray = { workspace = true }
-candle-core = { workspace = true }
+# rand = { workspace = true }
+# ndarray = { workspace = true }
+# candle-core = { workspace = true }
+hpt-dyn = { path = "./hpt-dyn", features = ["f32", "i64"] }
+env_logger = { workspace = true }
+log = { workspace = true }
+# tract-core = { workspace = true }
+# tract-onnx = { workspace = true }
+half = { workspace = true }
+safetensors = { workspace = true }
+spindle = { workspace = true }
+flame = { workspace = true }
 
 [workspace.dependencies]
 once_cell = "1.21.1"
@@ -37,7 +47,7 @@ ctor = "0.4.1"
 seq-macro = "0.3.6"
 paste = "1.0.15"
 cache-size = "0.7.0"
-duplicate = "2.0.0"
+duplicate = {version = "2.0.0", features = ["pretty_errors"]}
 lazy_static = "1.5.0"
 threadpool = "1.8.1"
 raw-cpuid = { version = "11.2", default-features = false }
@@ -45,7 +55,7 @@ dyn-stack = { version = "0.13", default-features = false, features = ["alloc"] }
 num-traits = "0.2.19"
 num-complex = "0.4.6"
 rayon = "1.10.0"
-half = { version = "2.3.1", features = ["num-traits", "rand_distr", "serde"] }
+half = { version = "2.6.0", features = ["num-traits", "rand_distr", "serde"] }
 serde = { version = "1.0.219", features = ["derive", "rc"] }
 libm = "0.2.11"
 rand_distr = "0.5.1"
@@ -61,7 +71,7 @@ indicatif = "0.17.11"
 serde_json = "1.0.140"
 zip = "2.4.0"
 thiserror = "2.0.12"
-petgraph = "0.7.1"
+petgraph = "0.8.1"
 cudarc = { version = "0.13.4", default-features = false, features = [
     "std",
     "cublas",
@@ -82,16 +92,31 @@ walkdir = "2.5.0"
 phf_codegen = "0.11.3"
 phf = "0.11.3"
 rustfft = "6.2.0"
-gemm = { version = "0.18.2", features = ["rayon"] }
+gemm = { version = "0.18.2", features = ["rayon", "nightly"] }
 gemm-common = "0.18.2"
 rand = "0.9.0"
 ndarray-rand = "0.15.0"
 ndarray = { version = "0.16.1", features = ["rayon"] }
-candle-core = { version = "0.8.4", features = ["mkl"] }
-candle-nn = "0.8.4"
+# candle-core = { version = "0.9.1" }
+# candle-nn = "0.9.1"
 gnuplot = "0.0.45"
 criterion = { version = "0.5.1", features = ["html_reports"] }
 tch = { version = "0.17.0", features = ["download-libtorch"] }
+spindle = "0.2.2"
+prost = "0.13.5"
+prost-types = "0.13.5"
+urlencoding = "2.1.0"
+log = "0.4.27"
+env_logger = "0.11.8"
+num_enum = "0.7"
+num-integer = "0.1"
+crossbeam = "0.8.4"
+core_affinity = "0.8.3"
+libc = "0.2.172"
+dashmap = "6.1.0"
+tract-core = "0.21.13"
+tract-onnx = "0.21.13"
+flame = "0.2.2"
 
 [[bin]]
 name = "hpt-workspace"
@@ -100,7 +125,7 @@ path = "src/main.rs"
 [profile.release]
 opt-level = 3
 incremental = true
-debug = false
+debug = true
 lto = "fat"
 codegen-units = 1
 

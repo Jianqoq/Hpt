@@ -15,7 +15,7 @@ use super::isizex4::isizex4;
 /// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct usizex8(pub(crate) u32x8);
 
 #[cfg(target_pointer_width = "32")]
@@ -27,7 +27,7 @@ pub(crate) type usize_promote = usizex8;
 /// a vector of 4 usize values
 #[allow(non_camel_case_types)]
 #[derive(Clone, Copy, Debug)]
-#[repr(C, align(16))]
+#[repr(C, align(32))]
 pub struct usizex4(pub(crate) u64x4);
 
 #[cfg(target_pointer_width = "64")]
@@ -65,10 +65,6 @@ impl VecTrait<usize> for USizeVEC {
     #[cfg(target_pointer_width = "32")]
     const SIZE: usize = 8;
     type Base = usize;
-    #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[usize]) {
-        USizeBase::copy_from_slice(&mut self.0, unsafe { std::mem::transmute(slice) });
-    }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         Self(self.0.mul_add(a.0, b.0))

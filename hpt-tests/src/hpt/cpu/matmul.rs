@@ -1,4 +1,9 @@
 #![allow(unused)]
+use crate::TestTypes;
+use crate::DYN_TEST_TYPES;
+use crate::EPSILON;
+use crate::TEST_ATOL;
+use crate::TEST_RTOL;
 use hpt::common::cpu::TensorLike;
 use hpt::common::TensorInfo;
 use hpt::ops::*;
@@ -6,6 +11,7 @@ use hpt::slice;
 use hpt::types::TypeCommon;
 use hpt::utils::resize_cpu_lru_cache;
 use hpt::Tensor;
+use hpt_dyn::Tensor as DynTensor;
 use hpt_types::into_scalar::Cast;
 use hpt_types::type_promote::NormalOut;
 use hpt_types::type_promote::NormalOutUnary;
@@ -15,23 +21,34 @@ use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIter
 use tch;
 use tch::Tensor as TchTensor;
 
-use crate::TestTypes;
-use crate::EPSILON;
-use crate::TEST_ATOL;
-use crate::TEST_RTOL;
-
 #[test]
 fn test() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..10 {
-        let m = rng.random_range(1..=128);
-        let n = rng.random_range(1..=128);
-        let k = rng.random_range(1..=128);
+    for i in 0..1000 {
+        let m = rng.random_range(1..=512);
+        let n = rng.random_range(1..=512);
+        let k = rng.random_range(1..=512);
+        println!("m: {}, n: {}, k: {}", m, n, k);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let c = a.matmul(&b)?;
-        let c2 = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;
-        assert!(c.allclose(&c2, TEST_ATOL, TEST_RTOL));
+        let c = a.gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?;
+        let a3 = unsafe { DynTensor::from_raw(
+            a.ptr().ptr as *mut u8,
+            a.layout().clone(),
+            DYN_TEST_TYPES,
+            hpt_dyn::Device::Cpu,
+            false,
+        ) }?;
+        let b3 = unsafe { DynTensor::from_raw(
+            b.ptr().ptr as *mut u8,
+            b.layout().clone(),
+            DYN_TEST_TYPES,
+            hpt_dyn::Device::Cpu,
+            false,
+        ) }?;
+        let c3 = a3.matmul(&b3)?;
+        let c3_hpt: Tensor<TestTypes> = unsafe { Tensor::from_raw(c3.ptr().ptr as *mut TestTypes, c3.shape()) }?;
+        assert!(c.allclose(&c3_hpt, TEST_ATOL, TEST_RTOL));
     }
     Ok(())
 }
@@ -68,7 +85,7 @@ fn test_post_op() -> anyhow::Result<()> {
         let k = rng.random_range(1..=128);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c = a.matmul_post(&b, |x, _, _| x._relu(), |x, _, _| x._relu())?;
         let c2 = a
             .gemm(&b, TestTypes::ZERO, TestTypes::ONE, false, false, false)?
             .relu()?;
@@ -86,7 +103,7 @@ fn test_mp_post_op() -> anyhow::Result<()> {
         let k = rng.random_range(1..=128);
         let a = Tensor::<TestTypes>::randn(&[m, k])?;
         let b = Tensor::<TestTypes>::randn(&[k, n])?;
-        let c = a.matmul_post(&b, |x| x._relu(), |x| x._relu())?;
+        let c = a.matmul_post(&b, |x, _, _| x._relu(), |x, _, _| x._relu())?;
         let c2: Tensor<TestTypes> = a.matmul(&b)?.relu()?;
         assert!(c.allclose(&c2, TEST_ATOL, TEST_RTOL));
     }
@@ -96,7 +113,7 @@ fn test_mp_post_op() -> anyhow::Result<()> {
 #[test]
 fn test_t() -> anyhow::Result<()> {
     let mut rng = rand::rng();
-    for i in 0..1 {
+    for i in 0..10 {
         let m = rng.random_range(1..=128);
         let n = rng.random_range(1..=128);
         let k = rng.random_range(1..=128);

@@ -71,7 +71,7 @@ pub mod strided_simd {
         /// # Returns
         ///
         /// A new instance of `StridedSimd` initialized with the provided tensor.
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             StridedSimd {
                 ptr: tensor.ptr(),
                 layout: tensor.layout().clone(),
@@ -139,11 +139,11 @@ pub mod strided_simd {
                 let j = j as usize;
                 if self.prg[j] < self.shape()[j] - 1 {
                     self.prg[j] += 1;
-                    self.ptr.offset(self.strides()[j]);
+                    self.ptr += self.strides()[j];
                     break;
                 } else {
                     self.prg[j] = 0;
-                    self.ptr.offset(-self.strides()[j] * (self.shape()[j] - 1));
+                    self.ptr += -self.strides()[j] * (self.shape()[j] - 1);
                 }
             }
         }
@@ -244,7 +244,7 @@ impl<T: CommonBounds> Strided<T> {
     /// # Returns
     ///
     /// A new instance of `Strided` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
         Strided {
             ptr: tensor.ptr(),
             layout: tensor.layout().clone(),
@@ -314,11 +314,11 @@ impl<T: CommonBounds> IterGetSet for Strided<T> {
             let j = j as usize;
             if self.prg[j] < self.shape()[j] - 1 {
                 self.prg[j] += 1;
-                self.ptr.offset(self.strides()[j]);
+                self.ptr += self.strides()[j];
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr.offset(-self.strides()[j] * (self.shape()[j] - 1));
+                self.ptr += -self.strides()[j] * (self.shape()[j] - 1);
             }
         }
     }

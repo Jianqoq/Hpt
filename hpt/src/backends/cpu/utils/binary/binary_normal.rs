@@ -251,7 +251,7 @@ where
             }
             Ok(ret)
         } else {
-            let output_shape = lhs.layout().broadcast(rhs.layout())?;
+            let output_shape = lhs.layout().broadcast(rhs.shape())?;
             let mut res = if let Some(out) = out {
                 ShapeError::check_inplace_out_layout_valid(
                     output_shape.shape(),

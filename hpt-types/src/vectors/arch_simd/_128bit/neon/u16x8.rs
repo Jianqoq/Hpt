@@ -1,7 +1,4 @@
-use crate::{
-    traits::{SimdMath, SimdSelect, VecTrait},
-    type_promote::{Eval2, FloatOutBinary2},
-};
+use crate::{ traits::{ SimdMath, SimdSelect, VecTrait }, type_promote::{ Eval2, FloatOutBinary2 } };
 
 use std::arch::aarch64::*;
 
@@ -29,12 +26,6 @@ impl VecTrait<u16> for u16x8 {
     const SIZE: usize = 8;
     type Base = u16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u16]) {
-        unsafe {
-            self.0 = vld1q_u16(slice.as_ptr());
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { Self(vmlaq_u16(b.0, self.0, a.0)) }
     }
@@ -56,10 +47,10 @@ impl VecTrait<u16> for u16x8 {
     }
 }
 
-impl SimdSelect<u16x8> for u16x8 {
+impl SimdSelect<u16x8> for i16x8 {
     #[inline(always)]
     fn select(&self, true_val: u16x8, false_val: u16x8) -> u16x8 {
-        unsafe { u16x8(vbslq_u16(self.0, true_val.0, false_val.0)) }
+        unsafe { u16x8(vbslq_u16(vreinterpretq_u16_s16(self.0), true_val.0, false_val.0)) }
     }
 }
 
@@ -261,12 +252,7 @@ impl Eval2 for u16x8 {
 
     #[inline(always)]
     fn __is_true(&self) -> Self::Output {
-        unsafe {
-            i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_u16(
-                self.0,
-                vdupq_n_u16(0),
-            ))))
-        }
+        unsafe { i16x8(vmvnq_s16(vreinterpretq_s16_u16(vceqq_u16(self.0, vdupq_n_u16(0))))) }
     }
 
     #[inline(always)]

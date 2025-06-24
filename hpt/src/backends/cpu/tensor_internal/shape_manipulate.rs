@@ -268,8 +268,8 @@ where
             .zip(inputs.into_par_iter())
             .for_each(|(res_tensors, inputs)| {
                 for (res, input) in res_tensors.into_iter().zip(inputs.into_iter()) {
-                    let mut res_ptr = res.ptr();
-                    let mut a_data = input.ptr();
+                    let mut res_ptr = res.ptr::<T>();
+                    let mut a_data = input.ptr::<T>();
                     let a_last_stride = *input.strides().last().unwrap();
                     let inner_loop_size = *input.shape().last().unwrap();
                     let outer_loop_size = input.size() / (inner_loop_size as usize);

@@ -151,11 +151,11 @@ where
         for id in 0..num_threads {
             let mut res_prg = vec![0; res_shape.len()];
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
             for i in (0..=res_shape.len() - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i] * strides[i]);
+                a_data_ptr_cpy += progress_init_a_data[i] * strides[i];
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -224,11 +224,10 @@ where
         let ndim = res_shape.len() as i64;
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -301,14 +300,14 @@ where
         let mut task_amout = 0;
         let mut iterators: Vec<ReductionPreprocessor<T, U>> = Vec::with_capacity(num_threads);
         let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
+        let mut res_ptrs = res_ptrs.borrow_mut();
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             /*traverse the whole result shape and increment the input data ptr based on current thread id*/
             for i in (0..=res_shape.len() as i64 - 1).rev() {
-                a_data_ptr_cpy.offset(progress_init_a_data[i as usize] * strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * strides[i as usize];
             }
             // calculate the total task amount so far based on current thread id,
             // we are splitting the whole tensor into two axes
@@ -331,7 +330,7 @@ where
             // increment the res ptr based on the current thread task amount for next thread (next iteration)
             task_amout += intervals[id].1 - intervals[id].0;
             let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add(intervals[id].1 - intervals[id].0);
+            res_ptrs += intervals[id].1 - intervals[id].0;
 
             let mut tmp2 = task_amout as i64;
             for j in (0..=res_shape.len() as i64 - 1).rev() {
@@ -367,7 +366,7 @@ where
         let mut task_amout = 0;
         let mut iterators = Vec::with_capacity(num_threads);
         let mut progress_init_a_data = vec![0; res_shape.len()];
-        let res_ptrs = res_ptrs.borrow_mut();
+        let mut res_ptrs = res_ptrs.borrow_mut();
         let ndim = res_shape.len() as i64;
 
         // [0, 6, 12, 18, 24, 30] res0    thread 0
@@ -378,11 +377,10 @@ where
         // [5, 11, 17, 23, 29, 35] res5   thread 2
         for id in 0..num_threads {
             let mut a_data_ptr_cpy = ptrs.clone();
-            let a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
+            let mut a_data_ptr_cpy = a_data_ptr_cpy.borrow_mut();
 
             for i in (0..ndim - 1).rev() {
-                a_data_ptr_cpy
-                    .offset(progress_init_a_data[i as usize] * transposed_strides[i as usize]);
+                a_data_ptr_cpy += progress_init_a_data[i as usize] * transposed_strides[i as usize];
             }
 
             let progress_init_a_data_cpy = progress_init_a_data.clone();
@@ -392,7 +390,7 @@ where
             let prg = vec![0; transposed_shape.len()];
 
             let res_ptr_cpy = res_ptrs.clone();
-            res_ptrs.add((intervals[id].1 - intervals[id].0) * inner_loop_size);
+            res_ptrs += (intervals[id].1 - intervals[id].0) * inner_loop_size;
 
             let mut tmp = task_amout as i64;
             for j in (0..ndim - 1).rev() {

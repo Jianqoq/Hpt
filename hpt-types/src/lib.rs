@@ -1,3 +1,6 @@
+#![cfg_attr(any(target_feature = "avx512f"), feature(stdarch_x86_avx512))]
+#![cfg_attr(any(target_feature = "avx512fp16"), feature(stdarch_x86_avx512_f16))]
+#![allow(unstable_features)]
 //! This crate implment type utilities for tensor operations
 #![deny(missing_docs)]
 
@@ -11,6 +14,22 @@ pub mod into_scalar;
 pub mod into_vec;
 /// A module defines a set of traits for tensor operations, and implement computation functions for scalar and vector types
 pub mod type_promote;
+
+/// A module defines functions for dynamic dispatch
+pub mod dyn_dispatch {
+    /// scalar dispatch
+    pub mod scalar;
+    /// vector dispatch
+    pub mod vector;
+}
+
+pub use dyn_dispatch::scalar;
+pub use dyn_dispatch::vector;
+pub use promotion::utils::{
+    promote_eval, promote_float_binary, promote_float_unary, promote_normal_binary,
+    promote_normal_unary,
+};
+
 /// A module defines a set of traits for scalar operations
 pub(crate) mod scalars {
     pub(crate) mod _bf16;
@@ -94,6 +113,8 @@ pub mod vectors {
                 pub(crate) mod u32x4;
                 pub(crate) mod u64x2;
                 pub(crate) mod u8x16;
+                /// the number of registers available
+                pub const REGNUM: usize = 32;
             }
 
             #[cfg(all(target_arch = "x86_64", target_feature = "sse"))]
@@ -111,6 +132,8 @@ pub mod vectors {
                 pub(crate) mod u32x4;
                 pub(crate) mod u64x2;
                 pub(crate) mod u8x16;
+                /// the number of registers available
+                pub const REGNUM: usize = 8;
             }
 
             pub use crate::arch_simd::_128bit::common::{
@@ -119,9 +142,18 @@ pub mod vectors {
                 i8x16::i8x16, isizex2::isizex2, u16x8::u16x8, u32x4::u32x4, u64x2::u64x2,
                 u8x16::u8x16, usizex2::usizex2,
             };
+            #[cfg(target_feature = "neon")]
+            #[cfg(target_arch = "aarch64")]
+            pub use crate::arch_simd::_128bit::neon::REGNUM;
+            #[cfg(all(target_arch = "x86_64", target_feature = "sse"))]
+            pub use crate::arch_simd::_128bit::sse::REGNUM;
         }
         /// A module defines a set of 256-bit vector types
-        #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+        #[cfg(all(
+            target_arch = "x86_64",
+            target_feature = "avx2",
+            not(target_feature = "avx512f")
+        ))]
         pub mod _256bit {
             pub(crate) mod common {
                 pub(crate) mod bf16x16;
@@ -156,8 +188,12 @@ pub mod vectors {
                 pub(crate) mod u32x8;
                 pub(crate) mod u64x4;
                 pub(crate) mod u8x32;
+                /// the number of registers available
+                pub const REGNUM: usize = 16;
             }
 
+            #[cfg(target_feature = "avx2")]
+            pub use crate::arch_simd::_256bit::avx2::REGNUM;
             pub use crate::arch_simd::_256bit::common::{
                 bf16x16::bf16x16, boolx32::boolx32, cplx32x4::cplx32x4, cplx64x2::cplx64x2,
                 f16x16::f16x16, f32x8::f32x8, f64x4::f64x4, i16x16::i16x16, i32x8::i32x8,
@@ -165,6 +201,68 @@ pub mod vectors {
                 u64x4::u64x4, u8x32::u8x32, usizex4::usizex4,
             };
         }
+
+        /// A module defines a set of 512-bit vector types
+        #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+        pub mod _512bit {
+            pub(crate) mod common {
+                pub(crate) mod bf16x32;
+                pub(crate) mod boolx64;
+                pub(crate) mod cplx32x8;
+                pub(crate) mod cplx64x4;
+                pub(crate) mod f16x32;
+                pub(crate) mod f32x16;
+                pub(crate) mod f64x8;
+                pub(crate) mod i16x32;
+                pub(crate) mod i32x16;
+                pub(crate) mod i64x8;
+                pub(crate) mod i8x64;
+                pub(crate) mod isizex8;
+                pub(crate) mod u16x32;
+                pub(crate) mod u32x16;
+                pub(crate) mod u64x8;
+                pub(crate) mod u8x64;
+                pub(crate) mod usizex8;
+            }
+            #[cfg(target_feature = "avx512f")]
+            pub(crate) mod avx512 {
+                pub(crate) mod bf16x32;
+                pub(crate) mod f16x32;
+                pub(crate) mod f32x16;
+                pub(crate) mod f64x8;
+                pub(crate) mod i16x32;
+                pub(crate) mod i32x16;
+                pub(crate) mod i64x8;
+                pub(crate) mod i8x64;
+                pub(crate) mod u16x32;
+                pub(crate) mod u32x16;
+                pub(crate) mod u64x8;
+                pub(crate) mod u8x64;
+                /// the number of registers available
+                pub const REGNUM: usize = 16;
+            }
+
+            #[cfg(target_feature = "avx512f")]
+            pub use crate::arch_simd::_512bit::avx512::REGNUM;
+            pub use crate::arch_simd::_512bit::common::{
+                bf16x32::bf16x32, boolx64::boolx64, cplx32x8::cplx32x8, cplx64x4::cplx64x4,
+                f16x32::f16x32, f32x16::f32x16, f64x8::f64x8, i16x32::i16x32, i32x16::i32x16,
+                i64x8::i64x8, i8x64::i8x64, isizex8::isizex8, u16x32::u16x32, u32x16::u32x16,
+                u64x8::u64x8, u8x64::u8x64, usizex8::usizex8,
+            };
+        }
+
+        #[cfg(any(
+            all(not(target_feature = "avx2"), target_feature = "sse"),
+            target_arch = "arm",
+            target_arch = "aarch64",
+            target_feature = "neon"
+        ))]
+        pub use crate::arch_simd::_128bit::neon::REGNUM;
+        #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
+        pub use crate::arch_simd::_256bit::avx2::REGNUM;
+        #[cfg(target_feature = "avx512f")]
+        pub use crate::arch_simd::_512bit::avx512::REGNUM;
 
         // This file contains code ported from SLEEF (https://github.com/shibatch/sleef)
         //
@@ -210,8 +308,15 @@ pub mod vectors {
                 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
                 pub mod helper_aarch64;
                 /// A module defines a set of vector types for helper
-                #[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+                #[cfg(all(
+                    target_arch = "x86_64",
+                    target_feature = "avx2",
+                    not(target_feature = "avx512f")
+                ))]
                 pub mod helper_avx2;
+                /// A module defines a set of vector types for helper
+                #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+                pub mod helper_avx512;
                 /// A module defines a set of vector types for helper
                 #[cfg(all(
                     target_arch = "x86_64",
@@ -247,7 +352,7 @@ pub mod vectors {
     /// A module defines a set of utils for vector
     pub mod utils;
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     pub(crate) mod vector_promote {
         #[cfg(target_pointer_width = "64")]
         pub(crate) use crate::vectors::arch_simd::_256bit::common::isizex4::isize_promote;
@@ -263,6 +368,24 @@ pub mod vectors {
             f64x4::f64_promote, i16x16::i16_promote, i32x8::i32_promote, i64x4::i64_promote,
             i8x32::i8_promote, u16x16::u16_promote, u32x8::u32_promote, u64x4::u64_promote,
             u8x32::u8_promote,
+        };
+    }
+    #[cfg(target_feature = "avx512f")]
+    pub(crate) mod vector_promote {
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_256bit::common::usizex16::usize_promote;
+        #[cfg(target_pointer_width = "32")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::isizex16::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::isizex8::isize_promote;
+        #[cfg(target_pointer_width = "64")]
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::usizex8::usize_promote;
+        pub(crate) use crate::vectors::arch_simd::_512bit::common::{
+            bf16x32::bf16_promote, boolx64::bool_promote, cplx32x8::Complex32_promote,
+            cplx64x4::Complex64_promote, f16x32::f16_promote, f32x16::f32_promote,
+            f64x8::f64_promote, i16x32::i16_promote, i32x16::i32_promote, i64x8::i64_promote,
+            i8x64::i8_promote, u16x32::u16_promote, u32x16::u32_promote, u64x8::u64_promote,
+            u8x64::u8_promote,
         };
     }
     #[cfg(any(
@@ -289,6 +412,8 @@ pub mod vectors {
         };
     }
 }
+
+pub use vectors::arch_simd::REGNUM;
 
 #[cfg(feature = "cuda")]
 /// A module defines a set of types for cuda
@@ -322,7 +447,11 @@ mod simd {
     pub use crate::vectors::arch_simd::*;
 }
 
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(
+    target_arch = "x86_64",
+    target_feature = "avx2",
+    not(target_feature = "avx512f")
+))]
 pub(crate) mod sleef_types {
     use std::arch::x86_64::*;
     pub(crate) type VDouble = __m256d;
@@ -359,4 +488,15 @@ pub(crate) mod sleef_types {
     pub(crate) type VFloat = float32x4_t;
     pub(crate) type VInt = int32x2_t;
     pub(crate) type VInt2 = int32x4_t;
+}
+
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+pub(crate) mod sleef_types {
+    use std::arch::x86_64::*;
+    pub(crate) type VDouble = __m512d;
+    pub(crate) type VMask = __m512i;
+    pub(crate) type Vopmask = __mmask16;
+    pub(crate) type VFloat = __m512;
+    pub(crate) type VInt = __m256i;
+    pub(crate) type VInt2 = __m512i;
 }

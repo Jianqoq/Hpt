@@ -1,0 +1,29 @@
+[package]
+name = "hpt-conv"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+hpt-matmul = { path = "../hpt-matmul" }
+matconv_simd = { path = "../matconv_simd" }
+seq-macro = { workspace = true }
+half = { workspace = true }
+
+[features]
+default = ["f32", "f16"]
+bound_check = []
+bool = []
+f32 = []
+f16 = []
+bf16 = []
+f64 = []
+i8 = []
+u8 = []
+i16 = []
+u16 = []
+i32 = []
+u32 = []
+i64 = []
+u64 = []
+cplx32 = []
+cplx64 = []

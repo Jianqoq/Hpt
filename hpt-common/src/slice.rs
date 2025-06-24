@@ -1,4 +1,4 @@
-use crate::error::base::TensorError;
+use crate::{error::base::TensorError, layout::layout::Layout};
 
 /// # Internal Function
 /// Processes tensor slicing with given strides and shape, adjusting strides and shape
@@ -39,13 +39,12 @@ use crate::error::base::TensorError;
 /// ```
 #[track_caller]
 pub fn slice_process(
-    shape: Vec<i64>,
-    strides: Vec<i64>,
+    layout: &Layout,
     index: &[(i64, i64, i64)],
     alpha: i64,
 ) -> std::result::Result<(Vec<i64>, Vec<i64>, i64), TensorError> {
-    let mut res_shape: Vec<i64> = shape.clone();
-    let mut res_strides: Vec<i64> = strides.clone();
+    let mut res_shape: Vec<i64> = layout.shape().to_vec();
+    let mut res_strides: Vec<i64> = layout.strides().to_vec();
     res_shape.iter_mut().for_each(|x| {
         *x *= alpha;
     });
@@ -54,14 +53,18 @@ pub fn slice_process(
     });
     let mut res_ptr = 0;
     if index.len() > res_shape.len() {
-        panic!("index length is greater than the shape length");
+        panic!(
+            "index length is greater than the shape length, shape: {:?}, index: {:?}",
+            layout.shape(),
+            index
+        );
     }
-    let mut new_indices = Vec::with_capacity(shape.len());
+    let mut new_indices = Vec::with_capacity(layout.shape().len());
     let ellipsis_pos = index
         .iter()
         .position(|&idx| idx == (0, 0, 0x7FFFFFFFFFFFFFFF));
     if let Some(pos) = ellipsis_pos {
-        let missing_dims = shape.len() - (index.len() - 1);
+        let missing_dims = layout.shape().len() - (index.len() - 1);
         new_indices.extend_from_slice(&index[0..pos]);
         for _ in 0..missing_dims {
             new_indices.push((0, 0x7FFFFFFFFFFFFFFF, 1));
@@ -73,20 +76,20 @@ pub fn slice_process(
 
     for (idx, (start, mut end, step)) in new_indices.into_iter().enumerate() {
         if end == 0x7FFFFFFFFFFFFFFF {
-            end = shape[idx];
+            end = layout.shape()[idx];
         }
         let mut start = if start >= 0 {
             start
         } else {
-            start + shape[idx]
+            start + layout.shape()[idx]
         };
-        let mut end = if end >= 0 { end } else { end + shape[idx] };
+        let mut end = if end >= 0 { end } else { end + layout.shape()[idx] };
 
-        if start >= shape[idx] {
-            start = shape[idx] - 1;
+        if start >= layout.shape()[idx] {
+            start = layout.shape()[idx] - 1;
         }
-        if end > shape[idx] {
-            end = shape[idx];
+        if end > layout.shape()[idx] {
+            end = layout.shape()[idx];
         }
 
         let length = if step > 0 {
@@ -96,7 +99,6 @@ pub fn slice_process(
         } else {
             0
         };
-
         if length > 0 {
             res_shape[idx] = length * alpha;
             res_ptr += start * res_strides[idx];

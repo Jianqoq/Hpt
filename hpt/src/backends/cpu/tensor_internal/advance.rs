@@ -61,7 +61,7 @@ where
             let mut ptrs = vec![];
             let mut prgs = vec![];
             for (start, _) in intervals.iter() {
-                let mut ptr = self.ptr();
+                let mut ptr = self.ptr::<T>();
                 let mut inp_index = 0;
                 let mut inp_prg = vec![0; self.ndim()];
                 let mut inp_amount = start * (self.shape()[self.ndim() - 1] as usize);
@@ -70,7 +70,7 @@ where
                     inp_amount /= self.shape()[j] as usize;
                     inp_index += inp_prg[j] * self.strides()[j];
                 }
-                ptr.offset(inp_index);
+                ptr += inp_index;
                 ptrs.push(ptr);
                 prgs.push(inp_prg);
             }
@@ -94,7 +94,7 @@ where
                     {
                         let padded_idx = prg_idx + pads[dim_idx].0;
                         let offset = padded_idx * stride;
-                        res_ptr.offset(offset);
+                        res_ptr += offset;
                     }
                     for _ in start..end {
                         for i in 0..inner_loop {
@@ -104,13 +104,13 @@ where
                             let j = j;
                             if inp_prg[j] < tsp[j] - 1 {
                                 inp_prg[j] += 1;
-                                ptr.offset(ts[j]);
-                                res_ptr.offset(rs[j]);
+                                ptr += ts[j];
+                                res_ptr += rs[j];
                                 break;
                             } else {
                                 inp_prg[j] = 0;
-                                ptr.offset(-ts[j] * (tsp[j] - 1));
-                                res_ptr.offset(-rs[j] * (tsp[j] - 1));
+                                ptr += -ts[j] * (tsp[j] - 1);
+                                res_ptr += -rs[j] * (tsp[j] - 1);
                             }
                         }
                     }
@@ -169,8 +169,8 @@ where
         let inner_loop = *transposed.shape().last().unwrap() as isize;
         let outer_loop_size = transposed.size() / inner_loop as usize;
 
-        let res_ptr = transposed_res.ptr();
-        let res_indices_ptr = transposed_res_indices.ptr();
+        let res_ptr = transposed_res.ptr::<T>();
+        let res_indices_ptr = transposed_res_indices.ptr::<i64>();
         let transposed_res_shape = transposed_res.shape();
         let transposed_res_strides = transposed_res.strides();
         THREAD_POOL.with_borrow_mut(move |x| {
@@ -188,7 +188,7 @@ where
             let mut res_prgs = vec![];
 
             for (start, _) in intervals.iter() {
-                let mut ptr = transposed.ptr();
+                let mut ptr = transposed.ptr::<T>();
                 let mut res_ptr_cpy = res_ptr.clone();
                 let mut res_indices_ptr_cpy = res_indices_ptr.clone();
                 let mut current_prg = vec![0; transposed.ndim()];
@@ -205,11 +205,11 @@ where
                     index += current_prg[j] * transposed.strides()[j];
                     res_index += res_shape_prg[j] * transposed_res_strides[j];
                 }
-                ptr.offset(index);
+                ptr += index;
                 prgs.push(current_prg);
                 ptrs.push(ptr);
-                res_ptr_cpy.offset(res_index);
-                res_indices_ptr_cpy.offset(res_index);
+                res_ptr_cpy += res_index;
+                res_indices_ptr_cpy += res_index;
                 res_ptrs.push(res_ptr_cpy);
                 res_indices_ptrs.push(res_indices_ptr_cpy);
                 res_prgs.push(res_shape_prg);
@@ -340,7 +340,7 @@ where
         if axis < 0 {
             axis += self.ndim() as i64;
         }
-        ShapeError::check_index_out_of_range(axis, self.ndim() as i64)?;
+        ShapeError::check_index_out_of_range(axis as usize, self.ndim() as usize)?;
         axis += 1;
         new_shape.insert(axis as usize, depth as i64);
         let res = _Tensor::<T, Cpu, DEVICE, Al>::full(false_val, new_shape)?;
@@ -370,7 +370,7 @@ where
                 let inp_strides = self.strides().clone();
                 let permuted_res_shape = permuted_res.shape().clone();
                 let permuted_res_strides = permuted_res.strides().clone();
-                let inp_ptr = self.ptr();
+                let inp_ptr = self.ptr::<T>();
                 pool.execute(move || {
                     for i in start..end {
                         let mut amount = i;
@@ -666,9 +666,9 @@ where
         let ndim = self.ndim();
         let shape = self.shape();
 
-        let indices_ptr = indices.ptr();
-        let src_ptr = src.ptr();
-        let res_ptr = result.ptr();
+        let indices_ptr = indices.ptr::<i64>();
+        let src_ptr = src.ptr::<T>();
+        let res_ptr = result.ptr::<T>();
         let res_strides = result.strides();
 
         // scatter must be done in serial, because the indices may have same value

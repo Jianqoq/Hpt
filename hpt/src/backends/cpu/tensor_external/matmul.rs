@@ -53,6 +53,17 @@ where
         let out = out.borrow().inner.as_ref().clone();
         Ok(self.inner.matmul_(rhs.inner.as_ref(), out)?.into())
     }
+
+    fn addmm(
+        &self,
+        rhs: Tensor<T, Cpu, DEVICE, Al>,
+        bias: Tensor<T, Cpu, DEVICE, Al>,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self
+            .inner
+            .addmm(rhs.inner.as_ref(), bias.inner.as_ref())?
+            .into())
+    }
 }
 
 impl<T, const DEVICE: usize, Al> Matmul<&Tensor<T, Cpu, DEVICE, Al>> for Tensor<T, Cpu, DEVICE, Al>
@@ -84,6 +95,17 @@ where
     {
         let out = out.borrow().inner.as_ref().clone();
         Ok(self.inner.matmul_(rhs.inner.as_ref(), out)?.into())
+    }
+
+    fn addmm(
+        &self,
+        rhs: &Tensor<T, Cpu, DEVICE, Al>,
+        bias: &Tensor<T, Cpu, DEVICE, Al>,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        Ok(self
+            .inner
+            .addmm(rhs.inner.as_ref(), bias.inner.as_ref())?
+            .into())
     }
 }
 
@@ -130,6 +152,14 @@ where
     {
         self.inner.matmul_(&rhs.inner, out)
     }
+
+    fn addmm(
+        &self,
+        _: DiffTensor<T, Cpu, DEVICE, Al>,
+        _: DiffTensor<T, Cpu, DEVICE, Al>,
+    ) -> std::result::Result<Self::Output, TensorError> {
+        todo!()
+    }
 }
 
 impl<T, A, const DEVICE: usize> MatmulPost<Tensor<T, Cpu, DEVICE, A>> for Tensor<T, Cpu, DEVICE, A>
@@ -147,8 +177,8 @@ where
     fn matmul_post(
         &self,
         rhs: Tensor<T, Cpu, DEVICE, A>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self
             .inner
@@ -159,8 +189,8 @@ where
     fn matmul_post_<U>(
         &self,
         rhs: Tensor<T, Cpu, DEVICE, A>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
         mut out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
@@ -173,6 +203,28 @@ where
                 post_op,
                 post_op_vec,
                 out.borrow_mut().inner.as_ref().clone(),
+            )?
+            .into())
+    }
+
+    fn addmm_post<F, F2>(
+        &self,
+        rhs: Tensor<T, Cpu, DEVICE, A>,
+        bias: Tensor<T, Cpu, DEVICE, A>,
+        post_op: F,
+        post_op_vec: F2,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        F: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
+    {
+        Ok(self
+            .inner
+            .addmm_post(
+                rhs.inner.as_ref(),
+                bias.inner.as_ref(),
+                post_op,
+                post_op_vec,
             )?
             .into())
     }
@@ -193,8 +245,8 @@ where
     fn matmul_post(
         &self,
         rhs: &Tensor<T, Cpu, DEVICE, A>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
     ) -> std::result::Result<Self::Output, TensorError> {
         Ok(self
             .inner
@@ -205,8 +257,8 @@ where
     fn matmul_post_<U>(
         &self,
         rhs: &Tensor<T, Cpu, DEVICE, A>,
-        post_op: fn(T) -> T,
-        post_op_vec: fn(T::Vec) -> T::Vec,
+        post_op: fn(T, usize, usize) -> T,
+        post_op_vec: fn(T::Vec, usize, usize) -> T::Vec,
         mut out: U,
     ) -> std::result::Result<Self::InplaceOutput, TensorError>
     where
@@ -219,6 +271,28 @@ where
                 post_op,
                 post_op_vec,
                 out.borrow_mut().inner.as_ref().clone(),
+            )?
+            .into())
+    }
+
+    fn addmm_post<F, F2>(
+        &self,
+        rhs: &Tensor<T, Cpu, DEVICE, A>,
+        bias: &Tensor<T, Cpu, DEVICE, A>,
+        post_op: F,
+        post_op_vec: F2,
+    ) -> std::result::Result<Self::Output, TensorError>
+    where
+        F: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+        F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
+    {
+        Ok(self
+            .inner
+            .addmm_post(
+                rhs.inner.as_ref(),
+                bias.inner.as_ref(),
+                post_op,
+                post_op_vec,
             )?
             .into())
     }

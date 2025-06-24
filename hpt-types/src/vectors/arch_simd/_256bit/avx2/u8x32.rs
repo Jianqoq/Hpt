@@ -7,6 +7,8 @@ use std::arch::x86_64::*;
 use crate::simd::_256bit::i8x32;
 use crate::simd::_256bit::u8x32;
 
+use crate::traits::SimdSelect;
+
 impl PartialEq for u8x32 {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
@@ -27,15 +29,6 @@ impl Default for u8x32 {
 impl VecTrait<u8> for u8x32 {
     const SIZE: usize = 32;
     type Base = u8;
-    #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u8]) {
-        unsafe {
-            _mm256_storeu_si256(
-                &mut self.0,
-                _mm256_loadu_si256(slice.as_ptr() as *const __m256i),
-            )
-        }
-    }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
@@ -63,6 +56,19 @@ impl VecTrait<u8> for u8x32 {
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const u8) -> Self {
         u8x32(_mm256_loadu_si256(ptr as *const __m256i))
+    }
+}
+
+impl SimdSelect<u8x32> for i8x32 {
+    #[inline(always)]
+    fn select(&self, true_val: u8x32, false_val: u8x32) -> u8x32 {
+        unsafe {
+            u8x32(_mm256_blendv_epi8(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
     }
 }
 

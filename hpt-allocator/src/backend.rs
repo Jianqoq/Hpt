@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use crate::clone_storage;
+use crate::{clone_storage, CPU_STORAGE};
 
 /// Cpu backend
 ///
@@ -61,11 +61,7 @@ impl<B: BackendTy> std::fmt::Debug for Backend<B> {
 
 impl Clone for Cpu {
     fn clone(&self) -> Self {
-        if let Ok(mut storage) = crate::CPU_STORAGE.lock() {
-            clone_storage(self.ptr as *mut u8, self.device_id, &mut storage);
-        } else {
-            panic!("failed to lock CPU_STORAGE");
-        }
+        clone_storage(self.ptr as *mut u8, self.device_id, &*CPU_STORAGE);
         Cpu {
             ptr: self.ptr,
             device_id: self.device_id,
@@ -92,7 +88,7 @@ impl Clone for Cuda {
         if let Ok(mut storage) = crate::CUDA_STORAGE.lock() {
             clone_storage(self.ptr as *mut u8, self.device.ordinal(), &mut storage);
         } else {
-            panic!("failed to lock CPU_STORAGE");
+            panic!("failed to lock CUDA_STORAGE");
         }
         Cuda {
             ptr: self.ptr,
@@ -106,12 +102,16 @@ impl Clone for Cuda {
 impl Backend<Cuda> {
     /// create a new Cuda backend
     pub fn new(address: u64, device: Arc<cudarc::driver::CudaDevice>, should_drop: bool) -> Self {
-        let cap_major = device.attribute(
-            cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR,
-        ).expect("failed to get compute capability major when creating cuda backend");
-        let cap_minor = device.attribute(
-            cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR,
-        ).expect("failed to get compute capability minor when creating cuda backend");
+        let cap_major = device
+            .attribute(
+                cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR
+            )
+            .expect("failed to get compute capability major when creating cuda backend");
+        let cap_minor = device
+            .attribute(
+                cudarc::driver::sys::CUdevice_attribute::CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR
+            )
+            .expect("failed to get compute capability minor when creating cuda backend");
         Backend {
             inner: Cuda {
                 ptr: address,

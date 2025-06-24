@@ -73,6 +73,7 @@ pub(crate) mod backends {
             pub(crate) mod matmul {
                 pub(crate) mod common;
                 pub(crate) mod matmul;
+                pub(crate) mod template;
                 pub(crate) mod matmul_mixed_precision;
                 pub(crate) mod matmul_mp_post;
                 pub(crate) mod matmul_post;
@@ -302,6 +303,8 @@ pub(crate) mod backends {
         pub(crate) mod shape_manipulate;
         /// a module contains slice op
         pub(crate) mod slice;
+        pub(crate) mod thread_pool;
+        pub(crate) mod prefetch;
     }
 }
 pub(crate) mod tensor;
@@ -430,7 +433,6 @@ pub mod backend {
 pub mod buitin_templates {
     /// module for cpu buitin templates
     pub mod cpu {
-        pub use crate::backends::cpu::kernels::matmul::matmul::matmul_template;
         pub use crate::backends::cpu::utils::binary::binary_normal::binary_with_out;
     }
 }
@@ -440,7 +442,8 @@ pub mod utils {
     #[cfg(feature = "cuda")]
     use crate::CUDA_SEED;
     use crate::{
-        DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, RAYON_NUM_THREADS, RAYON_POOL, THREAD_POOL,
+        CUSTOM_THREAD_POOL, DISPLAY_LR_ELEMENTS, DISPLAY_PRECISION, RAYON_NUM_THREADS, RAYON_POOL,
+        THREAD_POOL,
     };
     pub use hpt_allocator::resize_cpu_lru_cache;
     #[cfg(feature = "cuda")]
@@ -449,7 +452,7 @@ pub mod utils {
 
     /// Get the global number of threads
     pub fn get_num_threads() -> usize {
-        THREAD_POOL.with(|x| x.borrow().max_count())
+        CUSTOM_THREAD_POOL.with(|x| x.borrow().num_threads())
     }
     /// Set the Tensor display precision
     pub fn set_display_precision(precision: usize) {
@@ -498,6 +501,9 @@ pub mod utils {
                         .build()
                         .unwrap();
                 });
+                CUSTOM_THREAD_POOL.with(|x| {
+                    x.borrow_mut().resize(num_threads).unwrap();
+                });
             }
             Err(_) => {}
         }
@@ -515,6 +521,17 @@ fn init() {
     THREAD_POOL.with(|x| {
         x.borrow_mut().set_num_threads(num_cpus::get_physical());
     });
+    RAYON_POOL.with(|x| {
+        let mut x = x.borrow_mut();
+        *x = rayon::ThreadPoolBuilder::new()
+            .num_threads(num_cpus::get_physical())
+            .stack_size(4 * 1024 * 1024)
+            .build()
+            .unwrap();
+    });
+    CUSTOM_THREAD_POOL.with(|x| {
+        x.borrow_mut().resize(num_cpus::get_physical()).unwrap();
+    });
 }
 
 thread_local! {
@@ -524,9 +541,15 @@ thread_local! {
 }
 
 thread_local! {
+    static CUSTOM_THREAD_POOL: RefCell<crate::backends::common::thread_pool::ComputeThreadPool> = RefCell::new(
+        crate::backends::common::thread_pool::ComputeThreadPool::new(num_cpus::get_physical())
+    );
+}
+
+thread_local! {
     static RAYON_POOL: RefCell<rayon::ThreadPool> = RefCell::new(
         rayon::ThreadPoolBuilder::new()
-            .num_threads(num_cpus::get())
+            .num_threads(num_cpus::get_physical())
             .build()
             .unwrap()
     );
@@ -537,15 +560,10 @@ static DISPLAY_LR_ELEMENTS: AtomicUsize = AtomicUsize::new(3);
 static ALIGN: usize = 64;
 static RAYON_NUM_THREADS: Lazy<AtomicUsize> = Lazy::new(|| AtomicUsize::new(num_cpus::get()));
 
-#[cfg(target_feature = "avx2")]
-pub(crate) const REGNUM: usize = 16;
-#[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
-pub(crate) const REGNUM: usize = 8;
-#[cfg(any(target_feature = "avx512f", target_arch = "aarch64"))]
-pub(crate) const REGNUM: usize = 32;
-
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 type BoolVector = simd::_256bit::boolx32;
+#[cfg(target_feature = "avx512f")]
+type BoolVector = simd::_512bit::boolx64;
 #[cfg(any(
     all(not(target_feature = "avx2"), target_feature = "sse"),
     target_feature = "neon"

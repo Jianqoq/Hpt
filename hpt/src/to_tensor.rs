@@ -59,7 +59,7 @@ macro_rules! impl_type_num {
                     let length = data.len();
                     let res_shape = Shape::from(vec![length as i64]);
                     let layout;
-                    let mut allocator = A::new();
+                    let allocator = A::new();
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(data);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$t>(), 8).unwrap();
@@ -74,9 +74,6 @@ macro_rules! impl_type_num {
                     }
                     let ly = hpt_common::layout::layout::Layout::new(res_shape, vec![1]);
                     return _Tensor {
-                        #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(ptr),
-                        #[cfg(feature = "bound_check")]
                         data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
@@ -105,7 +102,7 @@ macro_rules! impl_type_num {
                     let mut ptr = vec.as_mut_ptr();
                     let length = repeate_generic!(mul, $($generic), *);
                     let layout;
-                    let mut allocator = A::new();
+                    let allocator = A::new();
                     if (ptr as usize) % 8 == 0 {
                         let _ = ManuallyDrop::new(vec);
                         layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
@@ -121,9 +118,6 @@ macro_rules! impl_type_num {
                     let strides = shape_to_strides(&shape);
                     let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                     return _Tensor {
-                        #[cfg(not(feature = "bound_check"))]
-                        data: Pointer::new(ptr),
-                        #[cfg(feature = "bound_check")]
                         data: Pointer::new(ptr, length as i64),
                         parent: None,
                         layout: ly,
@@ -152,7 +146,7 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                let mut allocator = A::new();
+                let allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
@@ -169,9 +163,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
@@ -217,7 +208,7 @@ macro_rules! impl_type_num {
             let mut ptr = vec.as_mut_ptr();
             let length = repeate_generic!(mul, $($generic), *);
             let layout;
-            let mut allocator = A::new();
+            let allocator = A::new();
             if (ptr as usize) % 8 == 0 {
                 let _ = ManuallyDrop::new(vec);
                 layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
@@ -234,9 +225,6 @@ macro_rules! impl_type_num {
 
             let ly = hpt_common::layout::layout::Layout::new(shape, strides);
             return _Tensor {
-                #[cfg(not(feature = "bound_check"))]
-                data: Pointer::new(ptr),
-                #[cfg(feature = "bound_check")]
                 data: Pointer::new(ptr, length as i64),
                 parent: None,
                 layout: ly,
@@ -265,7 +253,7 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                let mut allocator = A::new();
+                let allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
@@ -282,9 +270,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,
@@ -313,7 +298,7 @@ macro_rules! impl_type_num {
                 let mut ptr = vec.as_mut_ptr();
                 let length = repeate_generic!(mul, $($generic), *);
                 let layout;
-                let mut allocator = A::new();
+                let allocator = A::new();
                 if (ptr as usize) % 8 == 0 {
                     let _ = ManuallyDrop::new(vec);
                     layout = Layout::from_size_align(length * std::mem::size_of::<$ct>(), 8).unwrap();
@@ -330,9 +315,6 @@ macro_rules! impl_type_num {
 
                 let ly = hpt_common::layout::layout::Layout::new(shape, strides);
                 return _Tensor {
-                    #[cfg(not(feature = "bound_check"))]
-                    data: Pointer::new(ptr),
-                    #[cfg(feature = "bound_check")]
                     data: Pointer::new(ptr, length as i64),
                     parent: None,
                     layout: ly,

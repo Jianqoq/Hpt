@@ -1,3 +1,3 @@
 ## Acknowledgements
 
-Our matrix multiplication implementation is based on the work from [gemm](https://github.com/sarah-quinones/gemm) by Sarah Quinones.
+Our matrix multiplication implementation is inspired from [gemm](https://github.com/sarah-quinones/gemm) by Sarah Quinones.

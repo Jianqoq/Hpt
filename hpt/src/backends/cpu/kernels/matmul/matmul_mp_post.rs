@@ -6,7 +6,7 @@ use crate::{
         pack_b_mixed_precision, L2_SLAB,
     },
     tensor_base::_Tensor,
-    ALIGN,
+    ALIGN, RAYON_POOL,
 };
 use dyn_stack::DynStack;
 use gemm_common::cache::KernelParams;
@@ -17,7 +17,7 @@ use hpt_allocator::{
 };
 use hpt_common::{error::base::TensorError, shape::shape_utils::mt_intervals, Pointer};
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
-use hpt_types::{dtype::TypeCommon, into_scalar::Cast, traits::VecTrait};
+use hpt_types::{dtype::TypeCommon, traits::VecTrait};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
 use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
@@ -44,7 +44,7 @@ use super::{microkernel_trait::MatmulMicroKernel, utils::kernel_params};
 /// * `mr`: m register block size
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mixed_precision_template<T, IM>(
+pub fn matmul_mixed_precision_template<T, IM, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -64,14 +64,16 @@ pub fn matmul_mixed_precision_template<T, IM>(
     mut num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
+    post_op: F1,
+    post_op_vec: F2,
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     assert_eq!(
         nr % T::Vec::SIZE,
@@ -91,13 +93,10 @@ pub fn matmul_mixed_precision_template<T, IM>(
 
     let packed_a = {
         let a_buffer = unsafe { std::alloc::alloc(packed_a_layout) };
-        #[cfg(feature = "bound_check")]
         let ret = Pointer::new(
             a_buffer as *mut IM,
             (packed_a_layout.size() / std::mem::size_of::<IM>()) as i64,
         );
-        #[cfg(not(feature = "bound_check"))]
-        let ret = Pointer::new(a_buffer as *mut IM);
         ret
     };
 
@@ -113,117 +112,123 @@ pub fn matmul_mixed_precision_template<T, IM>(
 
     let prgs = calculate_prgs(n, nc, mr, nr, mc, &intervals);
     let rem_prgs = calculate_prgs(n, nc, mr, nr, m % mc, &mc_rem_intervals);
-    (0..num_threads)
-        .into_par_iter()
-        .zip(prgs)
-        .zip(rem_prgs)
-        .zip(intervals)
-        .zip(mc_rem_intervals)
-        .for_each(
-            |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
-                L2_SLAB.with(|mem| {
-                    let mut mem = mem.borrow_mut();
-                    let stack = DynStack::new(&mut mem);
-                    let (packed_b_storage, _) =
-                        stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
-                    #[cfg(feature = "bound_check")]
-                    let packed_b = Pointer::new(
-                        packed_b_storage.as_mut_ptr() as *mut IM,
-                        (num_nr_blocks * nr * kc) as i64,
-                    );
-                    #[cfg(not(feature = "bound_check"))]
-                    let packed_b = Pointer::new(packed_b_storage.as_mut_ptr() as *mut IM);
-                    let mut i = 0;
-                    while i < m {
-                        let ib = min(mc, m - i);
-                        let use_prg = if ib == mc { prg } else { rem_prg };
-                        let use_start = if ib == mc { start } else { start_rem };
-                        let use_end = if ib == mc { end } else { end_rem };
-                        let j_start = use_prg[0] * nc;
-                        let mut p = 0;
-                        while p < k {
-                            let first_kiter = p == 0;
-                            let pb = min(kc, k - p);
-                            let last_kiter = p + pb == k;
-                            pack_a_mixed_precision::<T, IM>(
-                                a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
-                                packed_a.clone(),
-                                lda,
-                                lhs_col_stride,
-                                ib,
-                                pb,
-                                kc,
-                                mr,
-                                tid,
-                                mb_per_thread,
-                                num_mr_blocks,
+    RAYON_POOL.with_borrow(|pool| {
+        pool.install(|| {
+            (0..num_threads)
+                .into_par_iter()
+                .zip(prgs)
+                .zip(rem_prgs)
+                .zip(intervals)
+                .zip(mc_rem_intervals)
+                .for_each(
+                    |((((tid, prg), rem_prg), (start, end)), (start_rem, end_rem))| {
+                        L2_SLAB.with(|mem| {
+                            let mut mem = mem.borrow_mut();
+                            let stack = DynStack::new(&mut mem);
+                            let (packed_b_storage, _) =
+                                stack.make_aligned_uninit::<IM>(num_nr_blocks * nr * kc, ALIGN);
+                            let packed_b = Pointer::new(
+                                packed_b_storage.as_mut_ptr() as *mut IM,
+                                (num_nr_blocks * nr * kc) as i64,
                             );
-                            barrier.wait();
-
-                            let mut job_count = use_start;
-                            let mut i_start = use_prg[1] * mr;
-                            let mut jj_start = use_prg[2] * nr;
-                            'outer: for j in (j_start..n).step_by(nc) {
-                                let jb = min(nc, n - j);
-                                let c = out.clone() + i as i64 * ldc + j as i64;
-                                pack_b_mixed_precision::<T, IM>(
-                                    b.clone() + (p as i64 * ldb + j as i64 * rhs_col_stride),
-                                    packed_b.clone(),
-                                    ldb,
-                                    rhs_col_stride,
-                                    jb,
-                                    pb,
-                                    kc,
-                                    nr,
-                                    pack_vec,
-                                    pack_vec_exceed,
-                                    pack_zero,
-                                );
-                                let packed_a = packed_a.clone();
-                                for i in (i_start..ib).step_by(mr) {
-                                    let mb = min(mr, ib - i);
-                                    let micro_kernel = <T>::get_mixed_precision_kernel_with_post_op(
-                                        nr / <T>::Vec::SIZE,
-                                        mb,
+                            let mut i = 0;
+                            while i < m {
+                                let ib = min(mc, m - i);
+                                let use_prg = if ib == mc { prg } else { rem_prg };
+                                let use_start = if ib == mc { start } else { start_rem };
+                                let use_end = if ib == mc { end } else { end_rem };
+                                let j_start = use_prg[0] * nc;
+                                let mut p = 0;
+                                while p < k {
+                                    let first_kiter = p == 0;
+                                    let pb = min(kc, k - p);
+                                    let last_kiter = p + pb == k;
+                                    pack_a_mixed_precision::<T, IM>(
+                                        a.clone() + i as i64 * lda + p as i64 * lhs_col_stride,
+                                        packed_a.clone(),
+                                        lda,
+                                        lhs_col_stride,
+                                        ib,
+                                        pb,
+                                        kc,
+                                        mr,
+                                        tid,
+                                        mb_per_thread,
+                                        num_mr_blocks,
+                                        pack_zero,
                                     );
+                                    barrier.wait();
 
-                                    for jj in (jj_start..jb).step_by(nr) {
-                                        let jjb = min(nr, jb - jj);
-                                        micro_kernel(
-                                            packed_a.clone() + kc as i64 * i as i64,
-                                            packed_b.clone() + jj as i64 * kc as i64,
-                                            c.clone() + i as i64 * ldc + jj as i64,
-                                            ldc,
-                                            1,
+                                    let mut job_count = use_start;
+                                    let mut i_start = use_prg[1] * mr;
+                                    let mut jj_start = use_prg[2] * nr;
+                                    'outer: for j in (j_start..n).step_by(nc) {
+                                        let jb = min(nc, n - j);
+                                        let c = out.clone() + i as i64 * ldc + j as i64;
+                                        pack_b_mixed_precision::<T, IM>(
+                                            b.clone()
+                                                + (p as i64 * ldb + j as i64 * rhs_col_stride),
+                                            packed_b.clone(),
+                                            ldb,
+                                            rhs_col_stride,
+                                            jb,
+                                            pb,
                                             kc,
-                                            jjb,
-                                            mb as i64,
-                                            first_kiter,
-                                            last_kiter,
-                                            vec_cast_back,
-                                            cast_back,
-                                            post_op.clone(),
-                                            post_op_vec.clone(),
+                                            nr,
+                                            pack_vec,
+                                            pack_vec_exceed,
+                                            pack_zero,
                                         );
-                                        job_count += 1;
-                                        if job_count >= use_end {
-                                            break 'outer;
+                                        let packed_a = packed_a.clone();
+                                        for ii in (i_start..ib).step_by(mr) {
+                                            let mb = min(mr, ib - ii);
+                                            let micro_kernel =
+                                                <T>::get_mixed_precision_kernel_with_post_op(
+                                                    nr / <T>::Vec::SIZE,
+                                                    mb,
+                                                );
+
+                                            for jj in (jj_start..jb).step_by(nr) {
+                                                let jjb = min(nr, jb - jj);
+                                                micro_kernel(
+                                                    packed_a.clone() + kc as i64 * ii as i64,
+                                                    packed_b.clone() + jj as i64 * kc as i64,
+                                                    c.clone() + ii as i64 * ldc + jj as i64,
+                                                    ldc,
+                                                    1,
+                                                    kc,
+                                                    jjb,
+                                                    mb as i64,
+                                                    first_kiter,
+                                                    last_kiter,
+                                                    i + ii,
+                                                    j + jj,
+                                                    vec_cast_back,
+                                                    cast_back,
+                                                    post_op.clone(),
+                                                    post_op_vec.clone(),
+                                                );
+                                                job_count += 1;
+                                                if job_count >= use_end {
+                                                    break 'outer;
+                                                }
+                                            }
+                                            jj_start = 0;
                                         }
+                                        i_start = 0;
                                     }
-                                    jj_start = 0;
+                                    p += kc;
+                                    if p < k {
+                                        barrier.wait();
+                                    }
                                 }
-                                i_start = 0;
+                                i += mc;
                             }
-                            p += kc;
-                            if p < k {
-                                barrier.wait();
-                            }
-                        }
-                        i += mc;
-                    }
-                });
-            },
-        );
+                        });
+                    },
+                );
+        });
+    });
 
     unsafe {
         std::alloc::dealloc(packed_a_ptr as *mut u8, packed_a_layout);
@@ -247,7 +252,7 @@ pub fn matmul_mixed_precision_template<T, IM>(
 /// * `rhs_col_stride`: `rhs.strides[b.ndim() - 1]`
 /// * `num_threads`: number of threads
 #[inline(always)]
-pub fn matmul_mp_post_template_no_block_info<T, IM>(
+pub fn matmul_mp_post_template_no_block_info<T, IM, F1, F2>(
     a: Pointer<T>,
     b: Pointer<T>,
     out: Pointer<T>,
@@ -262,14 +267,16 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     num_threads: usize,
     pack_vec: fn(*mut IM::Vec, *const T::Vec, usize),
     pack_vec_exceed: fn(*mut IM::Vec, usize),
-    pack_zero: fn(T) -> IM,
-    vec_cast_back: fn(*const IM::Vec) -> T::Vec,
-    cast_back: fn(IM) -> T,
-    post_op: fn(T) -> T,
-    post_op_vec: fn(T::Vec) -> T::Vec,
+    pack_zero: fn(&mut IM, &T),
+    vec_cast_back: fn(*mut T::Vec, *const IM::Vec),
+    cast_back: fn(&mut T, &IM),
+    post_op: F1,
+    post_op_vec: F2,
 ) where
-    T: CommonBounds + MatmulMicroKernel + Cast<IM>,
+    T: CommonBounds + MatmulMicroKernel,
     IM: CommonBounds,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr();
@@ -292,7 +299,7 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     if param.nc == 0 {
         param.nc = n.msrv_next_multiple_of(nr);
     }
-    matmul_mixed_precision_template::<T, IM>(
+    matmul_mixed_precision_template::<T, IM, F1, F2>(
         a,
         b,
         out,
@@ -320,41 +327,52 @@ pub fn matmul_mp_post_template_no_block_info<T, IM>(
     );
 }
 
-#[allow(unused)]
-pub(crate) fn f16_matmul_post<const DEVICE: usize, A>(
-    a: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::f16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::f16, Cpu, DEVICE, A>>,
-    post_op: fn(half::f16) -> half::f16,
-    post_op_vec: fn(<half::f16 as TypeCommon>::Vec) -> <half::f16 as TypeCommon>::Vec,
+#[duplicate::duplicate_item(
+    func_name half_type half_str;
+    [f16_matmul_mp_post_template_no_block_info] [half::f16] ["f16"];
+    [bf16_matmul_mp_post_template_no_block_info] [half::bf16] ["bf16"];
+)]
+pub(crate) fn func_name<T, IM, F1, F2>(
+    a: Pointer<T>,
+    b: Pointer<T>,
+    out: Pointer<T>,
+    m: usize,
+    n: usize,
+    k: usize,
+    lda: i64,
+    ldb: i64,
+    ldc: i64,
+    lhs_col_stride: i64,
+    rhs_col_stride: i64,
     num_threads: usize,
-) -> Result<_Tensor<half::f16, Cpu, DEVICE, A>, TensorError>
-where
-    A: Allocator,
-    A::Output: AllocatorOutputRetrive,
+    post_op: F1,
+    post_op_vec: F2,
+) where
+    T: CommonBounds + MatmulMicroKernel,
+    IM: CommonBounds,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(T::Vec, usize, usize) -> T::Vec + Clone + Send + Sync + 'static,
 {
     type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::f16 as TypeCommon>::Vec;
-
-    let c = matmul_prepare(&a, &b, out)?;
-    let m = a.shape()[0] as usize;
-    let n = b.shape()[1] as usize;
-    let k = a.shape()[1] as usize;
-
-    matmul_mp_post_template_no_block_info::<half::f16, f32>(
-        a.ptr(),
-        b.ptr(),
-        c.ptr(),
+    type F16Vec = <half_type as TypeCommon>::Vec;
+    assert_eq!(T::STR, half_str);
+    assert_eq!(IM::STR, "f32");
+    matmul_mp_post_template_no_block_info::<T, f32, F1, F2>(
+        a,
+        b,
+        out,
         m,
         n,
         k,
-        a.strides()[a.ndim() - 2],
-        b.strides()[b.ndim() - 2],
-        c.shape()[c.ndim() - 1] as i64,
-        a.strides()[a.ndim() - 1],
-        b.strides()[b.ndim() - 1],
+        lda,
+        ldb,
+        ldc,
+        lhs_col_stride,
+        rhs_col_stride,
         num_threads,
         |packed_b, b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
+            let b = b as *const F16Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             let b_vec = b.add(i).read_unaligned();
@@ -363,45 +381,63 @@ where
             packed_b_vec1.write(val_f32[1]);
         },
         |packed_b, i| unsafe {
+            let packed_b = packed_b as *mut F32Vec;
             let packed_b_vec0 = packed_b.add(i * 2);
             let packed_b_vec1 = packed_b.add(i * 2 + 1);
             packed_b_vec0.write(F32Vec::splat(0.0));
             packed_b_vec1.write(F32Vec::splat(0.0));
         },
-        |val| val.cast(),
-        |val| {
+        |im, val| {
+            let val = val as *const T as *const half_type;
+            *im = unsafe { val.read().to_f32() };
+        },
+        |im, val| {
+            let im = im as *mut F16Vec;
+            let val = val as *const F32Vec;
             let vec0 = unsafe { val.read() };
             let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
+            unsafe { im.write_unaligned(F16Vec::from_2_f32vec([vec0, vec1])) };
         },
-        |val| val.cast(),
+        |im, val| {
+            let im = im as *mut T as *mut half_type;
+            unsafe { *im = half_type::from_f32(*val) };
+        },
         post_op,
         post_op_vec,
     );
-    Ok(c)
 }
 
-pub(crate) fn bf16_matmul_post<const DEVICE: usize, A>(
-    a: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    b: &_Tensor<half::bf16, Cpu, DEVICE, A>,
-    out: Option<_Tensor<half::bf16, Cpu, DEVICE, A>>,
-    post_op: fn(half::bf16) -> half::bf16,
-    post_op_vec: fn(<half::bf16 as TypeCommon>::Vec) -> <half::bf16 as TypeCommon>::Vec,
+#[duplicate::duplicate_item(
+    func_name inner_func_name half_type;
+    [f16_matmul_post] [f16_matmul_mp_post_template_no_block_info] [half::f16];
+    [bf16_matmul_post] [bf16_matmul_mp_post_template_no_block_info] [half::bf16];
+)]
+#[allow(unused)]
+pub(crate) fn func_name<T: CommonBounds, const DEVICE: usize, A, F1, F2>(
+    a: &_Tensor<T, Cpu, DEVICE, A>,
+    b: &_Tensor<T, Cpu, DEVICE, A>,
+    out: Option<_Tensor<T, Cpu, DEVICE, A>>,
+    post_op: F1,
+    post_op_vec: F2,
     num_threads: usize,
-) -> Result<_Tensor<half::bf16, Cpu, DEVICE, A>, TensorError>
+) -> Result<_Tensor<T, Cpu, DEVICE, A>, TensorError>
 where
+    T: MatmulMicroKernel,
     A: Allocator,
     A::Output: AllocatorOutputRetrive,
+    F1: Fn(T, usize, usize) -> T + Clone + Send + Sync + 'static,
+    F2: Fn(<T as TypeCommon>::Vec, usize, usize) -> <T as TypeCommon>::Vec
+        + Clone
+        + Send
+        + Sync
+        + 'static,
 {
-    type F32Vec = <f32 as TypeCommon>::Vec;
-    type F16Vec = <half::bf16 as TypeCommon>::Vec;
-
     let c = matmul_prepare(&a, &b, out)?;
     let m = a.shape()[0] as usize;
     let n = b.shape()[1] as usize;
     let k = a.shape()[1] as usize;
 
-    matmul_mp_post_template_no_block_info::<half::bf16, f32>(
+    inner_func_name::<T, f32, F1, F2>(
         a.ptr(),
         b.ptr(),
         c.ptr(),
@@ -414,27 +450,6 @@ where
         a.strides()[a.ndim() - 1],
         b.strides()[b.ndim() - 1],
         num_threads,
-        |packed_b, b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            let b_vec = b.add(i).read_unaligned();
-            let val_f32 = b_vec.to_2_f32vec();
-            packed_b_vec0.write(val_f32[0]);
-            packed_b_vec1.write(val_f32[1]);
-        },
-        |packed_b, i| unsafe {
-            let packed_b_vec0 = packed_b.add(i * 2);
-            let packed_b_vec1 = packed_b.add(i * 2 + 1);
-            packed_b_vec0.write(F32Vec::splat(0.0));
-            packed_b_vec1.write(F32Vec::splat(0.0));
-        },
-        |val| val.cast(),
-        |val| {
-            let vec0 = unsafe { val.read() };
-            let vec1 = unsafe { val.add(1).read() };
-            F16Vec::from_2_f32vec([vec0, vec1])
-        },
-        |val| val.cast(),
         post_op,
         post_op_vec,
     );

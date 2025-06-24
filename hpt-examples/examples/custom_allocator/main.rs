@@ -16,7 +16,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<Self::Output, TensorError> {
@@ -27,7 +27,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     }
 
     fn allocate_zeroed(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<Self::Output, TensorError> {
@@ -36,7 +36,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     }
 
     fn deallocate(
-        &mut self,
+        &self,
         ptr: *mut u8,
         layout: &std::alloc::Layout,
         should_drop: bool,
@@ -50,12 +50,12 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     }
 
     // store the ptr at somewhere, like global variable
-    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
+    fn insert_ptr(&self, ptr: *mut u8, device_id: usize) {
         println!("insert ptr to cpu allocator");
     }
 
     // clear all the memory allocated, this method will be called when the program exits
-    fn clear(&mut self) {
+    fn clear(&self) {
         println!("clear cpu allocator");
     }
 
@@ -65,7 +65,7 @@ impl hpt::alloc::Allocator for CustomCpuAllocator {
     }
 
     /// forget the ptr from the allocator
-    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+    fn forget(&self, ptr: *mut u8, device_id: usize) {
         println!("forget ptr from cpu allocator");
     }
 }
@@ -79,7 +79,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     type CudaAllocator = CustomCudaAllocator;
 
     fn allocate(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<Self::Output, TensorError> {
@@ -88,7 +88,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     }
 
     fn allocate_zeroed(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
         device_id: usize,
     ) -> Result<Self::Output, TensorError> {
@@ -96,7 +96,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     }
 
     fn deallocate(
-        &mut self,
+        &self,
         ptr: *mut u8,
         layout: &std::alloc::Layout,
         should_drop: bool,
@@ -107,12 +107,12 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     }
 
     // store the ptr at somewhere, like global variable
-    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
+    fn insert_ptr(&self, ptr: *mut u8, device_id: usize) {
         todo!()
     }
 
     // clear all the memory allocated, this method will be called when the program exits
-    fn clear(&mut self) {
+    fn clear(&self) {
         todo!()
     }
 
@@ -122,7 +122,7 @@ impl hpt::alloc::Allocator for CustomCudaAllocator {
     }
 
     /// forget the ptr from the allocator
-    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
+    fn forget(&self, ptr: *mut u8, device_id: usize) {
         todo!()
     }
 }

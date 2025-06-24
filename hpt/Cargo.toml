@@ -18,6 +18,7 @@ hpt-macros = { path = "../hpt-macros", version = "0.1.1" }
 hpt-display = { path = "../hpt-display", version = "0.1.1" }
 hpt-dataloader = { path = "../hpt-dataloader", version = "0.1.1" }
 hpt-cudakernels = { path = "../hpt-cudakernels", version = "0.1.1", optional = true }
+hpt-matmul = { path = "../hpt-matmul", version = "0.1.1" }
 gemm = { workspace = true }
 dyn-stack = { workspace = true }
 flate2 = { workspace = true }
@@ -42,6 +43,7 @@ safetensors = { workspace = true }
 bytemuck = { workspace = true }
 gemm-common = { workspace = true }
 seq-macro = { workspace = true }
+spindle = { workspace = true }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 raw-cpuid = { version = "11.3.0", default-features = false }

@@ -40,58 +40,58 @@ pub fn impl_simd_cmp() -> TokenStream {
             }
             let res = if lhs_type.dtype == rhs_type.dtype {
                 quote! {
-                    impl SimdCmp<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
-                        type Output = <#lhs_simd_ty::#lhs_simd_ty as SimdCmpPromote<#rhs_simd_ty::#rhs_simd_ty>>::Output;
-                        fn _eq(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                    impl SimdCmp<#rhs_simd_ty> for #lhs_simd_ty {
+                        type Output = <#lhs_simd_ty as SimdCmpPromote<#rhs_simd_ty>>::Output;
+                        fn _eq(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_eq(rhs)
                         }
-                        fn _ne(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _ne(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_ne(rhs)
                         }
-                        fn _lt(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _lt(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_lt(rhs)
                         }
-                        fn _le(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _le(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_le(rhs)
                         }
-                        fn _gt(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _gt(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_gt(rhs)
                         }
-                        fn _ge(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _ge(self, rhs: #rhs_simd_ty) -> Self::Output {
                             self.simd_ge(rhs)
                         }
                     }
                 }
             } else {
                 quote! {
-                    impl SimdCmp<#rhs_simd_ty::#rhs_simd_ty> for #lhs_simd_ty::#lhs_simd_ty {
-                        type Output = <#lhs_simd_ty::#lhs_simd_ty as SimdCmpPromote<#rhs_simd_ty::#rhs_simd_ty>>::Output;
-                        fn _eq(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                    impl SimdCmp<#rhs_simd_ty> for #lhs_simd_ty {
+                        type Output = <#lhs_simd_ty as SimdCmpPromote<#rhs_simd_ty>>::Output;
+                        fn _eq(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_eq(rhs)
                         }
-                        fn _ne(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _ne(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_ne(rhs)
                         }
-                        fn _lt(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _lt(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_lt(rhs)
                         }
-                        fn _le(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _le(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_le(rhs)
                         }
-                        fn _gt(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _gt(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_gt(rhs)
                         }
-                        fn _ge(self, rhs: #rhs_simd_ty::#rhs_simd_ty) -> Self::Output {
+                        fn _ge(self, rhs: #rhs_simd_ty) -> Self::Output {
                             let lhs: Self::Output = self.into_vec();
                             let rhs: Self::Output = rhs.into_vec();
                             lhs.simd_ge(rhs)
@@ -108,25 +108,25 @@ pub fn impl_simd_cmp() -> TokenStream {
 
 fn impl_unreachable(lhs_simd: Ident, rhs_simd: Ident) -> TokenStream2 {
     quote! {
-        impl SimdCmp<#rhs_simd::#rhs_simd> for #lhs_simd::#lhs_simd {
-            type Output = <#lhs_simd::#lhs_simd as SimdCmpPromote<#rhs_simd::#rhs_simd>>::Output;
-            fn _eq(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+        impl SimdCmp<#rhs_simd> for #lhs_simd {
+            type Output = <#lhs_simd as SimdCmpPromote<#rhs_simd>>::Output;
+            fn _eq(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _ne(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _ne(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _lt(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _lt(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
 
-            fn _le(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _le(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _gt(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _gt(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
-            fn _ge(self, rhs: #rhs_simd::#rhs_simd) -> Self::Output {
+            fn _ge(self, rhs: #rhs_simd) -> Self::Output {
                 unreachable!()
             }
         }

@@ -8,7 +8,7 @@ use crate::NUM_REG;
 pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as Ident);
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     let num_registers = 16;
     #[cfg(all(
         any(target_feature = "sse", target_arch = "arm"),
@@ -47,7 +47,7 @@ pub fn __gen_fast_reduce_simd_helper(stream: TokenStream) -> TokenStream {
 pub fn __gen_fast_layernorm_simd_helper(stream: TokenStream) -> TokenStream {
     let input = parse_macro_input!(stream as Ident);
 
-    #[cfg(target_feature = "avx2")]
+    #[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
     let num_registers = 16;
     #[cfg(all(
         any(target_feature = "sse", target_arch = "arm"),

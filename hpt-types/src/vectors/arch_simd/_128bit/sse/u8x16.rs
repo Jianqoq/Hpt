@@ -28,15 +28,6 @@ impl VecTrait<u8> for u8x16 {
     const SIZE: usize = 16;
     type Base = u8;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u8]) {
-        unsafe {
-            _mm_storeu_si128(
-                &mut self.0,
-                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
             let mut res = [0u8; 16];
@@ -63,6 +54,19 @@ impl VecTrait<u8> for u8x16 {
     #[inline(always)]
     unsafe fn from_ptr(ptr: *const u8) -> Self {
         unsafe { u8x16(_mm_loadu_si128(ptr as *const __m128i)) }
+    }
+}
+
+impl SimdSelect<u8x16> for i8x16 {
+    #[inline(always)]
+    fn select(&self, true_val: u8x16, false_val: u8x16) -> u8x16 {
+        unsafe {
+            u8x16(_mm_blendv_epi8(
+                false_val.0,
+                true_val.0,
+                std::mem::transmute(self.0),
+            ))
+        }
     }
 }
 

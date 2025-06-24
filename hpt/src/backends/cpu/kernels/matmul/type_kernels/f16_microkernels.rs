@@ -32,7 +32,7 @@ impl MatmulMicroKernel for crate::types::f16 {
         define_neon_matmul_micro_kernel!(x2x8, 2, 8);
         [x2x1, x2x2, x2x3, x2x4, x2x5, x2x6, x2x7, x2x8][mr - 1]
     }
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -46,6 +46,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         F,
         G,
     ) {
@@ -81,8 +83,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         usize,
         i64,
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,
@@ -102,8 +104,8 @@ impl MatmulMicroKernel for crate::types::f16 {
     }
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -118,8 +120,10 @@ impl MatmulMicroKernel for crate::types::f16 {
         i64,
         bool,
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        usize,
+        usize,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
         F,
         G,
     )
@@ -158,8 +162,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         usize,
         i64,
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,
@@ -181,8 +185,8 @@ impl MatmulMicroKernel for crate::types::f16 {
 
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -197,8 +201,10 @@ impl MatmulMicroKernel for crate::types::f16 {
         i64,
         bool,
         bool,
-        fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        usize,
+        usize,
+        fn(*mut Self::Vec, *const <MixedType as TypeCommon>::Vec),
+        fn(&mut Self, &MixedType),
         F,
         G,
     )
@@ -262,8 +268,8 @@ impl MatmulMicroKernel for crate::types::f16 {
 
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -278,6 +284,8 @@ impl MatmulMicroKernel for crate::types::f16 {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         fn(*const <MixedType as TypeCommon>::Vec) -> Self::Vec,
         fn(MixedType) -> Self,
         F,

@@ -53,7 +53,7 @@ where
         axis,
         c,
         move |res| {
-            let ptr = a.ptr();
+            let ptr = a.ptr::<T>();
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let max = raw
                 .par_iter()
@@ -86,8 +86,8 @@ where
             let iterators = NormalizePreprocessor::new(
                 num_threads,
                 reduce_shape.inner().iter().product::<i64>() as usize,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_res_strides.clone(),
                 transposed_tensor.shape().sub_one(),
@@ -126,8 +126,8 @@ where
             let iterators = NormalizePreprocessor::new2(
                 num_threads,
                 outer_loop_size,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_res_strides.clone(),
                 transposed_tensor.shape().sub_one(),
@@ -186,7 +186,7 @@ where
         c,
         move |res| {
             let a = a.contiguous().expect("contiguous failed");
-            let ptr = a.ptr();
+            let ptr = a.ptr::<T>();
             let raw = unsafe { std::slice::from_raw_parts_mut(ptr.ptr, a.size() as usize) };
             let max = raw
                 .par_iter()
@@ -221,8 +221,8 @@ where
             let iterators = NormalizePreprocessor::new(
                 num_threads,
                 reduce_shape.inner().iter().product::<i64>() as usize,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_res_strides.clone(),
                 transposed_tensor.shape().sub_one(),
@@ -263,8 +263,8 @@ where
             let iterators = UCNormalizePreprocessor::new2(
                 num_threads,
                 outer_loop_size,
-                a.ptr(),
-                result.ptr(),
+                a.ptr::<T>(),
+                result.ptr::<O>(),
                 transposed_tensor.strides().clone(),
                 transposed_tensor.shape().sub_one(),
                 reduce_shape,

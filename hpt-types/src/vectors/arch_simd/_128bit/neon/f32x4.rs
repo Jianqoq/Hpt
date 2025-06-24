@@ -1,6 +1,6 @@
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
 use crate::simd::sleef::arch::helper_aarch64::{visnan_vo_vf, vneg_vf_vf};
-use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf};
+use crate::simd::sleef::libm::sleefsimdsp::{xceilf, xcopysignf, xfloorf, xsigmoid};
 use crate::type_promote::Eval2;
 
 use crate::arch_simd::sleef::libm::sleefsimdsp::{
@@ -43,12 +43,6 @@ impl Default for f32x4 {
 impl VecTrait<f32> for f32x4 {
     const SIZE: usize = 4;
     type Base = f32;
-    #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[f32]) {
-        unsafe {
-            vst1q_f32(self.as_mut_ptr(), vld1q_f32(slice.as_ptr()));
-        }
-    }
     #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { f32x4(vfmaq_f32(b.0, self.0, a.0)) }
@@ -435,7 +429,7 @@ impl SimdMath<f32> for f32x4 {
 
     #[inline(always)]
     fn sigmoid(self) -> Self {
-        Self::splat(1.0) / (Self::splat(1.0) + (-self).exp())
+        unsafe { Self(xsigmoid(self.0)) }
     }
     #[inline(always)]
     fn softsign(self) -> Self {

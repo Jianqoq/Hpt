@@ -32,7 +32,10 @@ use simd_float_out_binary::{
     impl_simd_binary_out_float_rhs_scalar,
 };
 use simd_normal_out::{impl_simd_normal_out_with_lhs_scalar, impl_simd_normal_out_with_rhs_scalar};
-use syn::{parse, parse_macro_input, Expr, Token};
+use syn::{
+    parse::{self, Parse, ParseStream},
+    parse_macro_input, Expr, Token,
+};
 mod binary_float_out;
 mod float_unary;
 mod from_scalar;
@@ -58,10 +61,10 @@ use crate::simd_cmp::impl_simd_cmp;
 use crate::simd_normal_out::impl_simd_normal_out;
 use proc_macro2::{TokenStream as TokenStream2, TokenTree};
 use quote::{format_ident, quote};
-use type_utils::TypeInfo;
+use type_utils::{type_simd_lanes, SimdType, TypeInfo};
 
 /// number of registers available for the target architecture
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 const NUM_REG: usize = 16;
 #[cfg(all(
     any(target_feature = "sse", target_arch = "arm"),
@@ -1109,4 +1112,418 @@ pub fn gen_matmul_microkernel_asm(input: TokenStream) -> TokenStream {
     let ast = syn::parse_macro_input!(input as MatmulMicrokernelArgs);
     let expanded = matmul_gen_asm(&ast);
     expanded.into()
+}
+
+struct DispatchArgs {
+    promote_trait: syn::Ident,
+    compute_trait: syn::Ident,
+    method: syn::Ident,
+    diff_type: bool,
+    num_inputs: usize,
+    unroll: usize,
+}
+
+impl Parse for DispatchArgs {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let promote_trait = input.parse::<syn::Ident>()?;
+        input.parse::<Token![,]>()?;
+        let compute_trait = input.parse::<syn::Ident>()?;
+        input.parse::<Token![,]>()?;
+        let method = input.parse::<syn::Ident>()?;
+        input.parse::<Token![,]>()?;
+        let diff_type = input.parse::<syn::LitBool>()?.value;
+        input.parse::<Token![,]>()?;
+        let num_inputs = input.parse::<syn::LitInt>()?.base10_parse::<usize>()?;
+        input.parse::<Token![,]>()?;
+        let unroll = input.parse::<syn::LitInt>()?.base10_parse::<usize>()?;
+        Ok(Self {
+            promote_trait,
+            compute_trait,
+            method,
+            diff_type,
+            num_inputs,
+            unroll,
+        })
+    }
+}
+
+/// implement dispatch scalar kernel
+#[proc_macro]
+pub fn impl_dispatch(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as DispatchArgs);
+    let promote_trait = &ast.promote_trait;
+    let compute_trait = &ast.compute_trait;
+    let method = &ast.method;
+    let unroll = ast.unroll;
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        "bool", "f16", "f32", "f64", "i8", "i16", "i32", "i64", "u8", "u16", "u32",
+        "u64", /*"isize",*/
+        /*"usize",*/ "bf16",
+    ];
+
+    if ast.num_inputs == 2 {
+        if ast.diff_type {
+            for lhs in types.iter() {
+                for rhs in types.iter() {
+                    let lhs_type = TypeInfo::new(lhs);
+                    let rhs_type = TypeInfo::new(rhs);
+                    let lhs_dtype = lhs_type.dtype;
+                    let rhs_dtype = rhs_type.dtype;
+                    let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+                    let rhs_dtype_enum = rhs_dtype.to_dtype_enum();
+                    let is_normal_out_unary = compute_trait.to_string().contains("NormalOutUnary");
+                    let res = if !is_normal_out_unary {
+                        let unroll_iter = (0..unroll).map(|i| quote! {
+                            out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait<#rhs_dtype>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                        });
+                        quote! {
+                            (#lhs_dtype_enum, #rhs_dtype_enum) => |a: usize, b: usize, out: usize| {
+                                let a = a as *const #lhs_dtype;
+                                let b = b as *const #rhs_dtype;
+                                let out = out as *mut <#lhs_dtype as #promote_trait<#rhs_dtype>>::Output;
+                                unsafe {
+                                    #(#unroll_iter)*
+                                }
+                            },
+                        }
+                    } else {
+                        let unroll_iter = (0..unroll).map(|i| quote! {
+                            out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                        });
+                        quote! {
+                            (#lhs_dtype_enum, #rhs_dtype_enum) => |a: usize, b: usize, out: usize| {
+                                let a = a as *const #lhs_dtype;
+                                let b = b as *const #rhs_dtype;
+                                let out = out as *mut <#lhs_dtype as #promote_trait<#rhs_dtype>>::Output;
+                                unsafe {
+                                    #(#unroll_iter)*
+                                }
+                            },
+                        }
+                    };
+                    ret.extend(res);
+                }
+            }
+        } else {
+            for lhs in types.iter() {
+                let lhs_type = TypeInfo::new(lhs);
+                let lhs_dtype = lhs_type.dtype;
+                let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+                let is_normal_out_unary = compute_trait.to_string().contains("NormalOutUnary");
+                let res = if !is_normal_out_unary {
+                    let unroll_iter = (0..unroll).map(|i| quote! {
+                        out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait<#lhs_dtype>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                    });
+                    quote! {
+                        #lhs_dtype_enum => |a: usize, b: usize, out: usize| {
+                            let a = a as *const #lhs_dtype;
+                            let b = b as *const #lhs_dtype;
+                            let out = out as *mut <#lhs_dtype as #promote_trait<#lhs_dtype>>::Output;
+                            unsafe {
+                                #(#unroll_iter)*
+                            }
+                        },
+                    }
+                } else {
+                    let unroll_iter = (0..unroll).map(|i| quote! {
+                        out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                    });
+                    quote! {
+                        #lhs_dtype_enum => |a: usize, b: usize, out: usize| {
+                            let a = a as *const #lhs_dtype;
+                            let b = b as *const #lhs_dtype;
+                            let out = out as *mut <#lhs_dtype as #promote_trait<#lhs_dtype>>::Output;
+                            unsafe {
+                                #(#unroll_iter)*
+                            }
+                        },
+                    }
+                };
+                ret.extend(res);
+            }
+        }
+    } else if ast.num_inputs == 1 {
+        for lhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let lhs_dtype = lhs_type.dtype;
+            let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+            let unroll_iter = (0..unroll).map(|i| quote! {
+                out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait>::#method(a.add(#i).read_unaligned()));
+            });
+            let res = quote! {
+                #lhs_dtype_enum => |a: usize, out: usize| {
+                    let a = a as *const #lhs_dtype;
+                    let out = out as *mut <#lhs_dtype as #promote_trait>::Output;
+                    unsafe {
+                        #(#unroll_iter)*
+                    }
+                },
+            };
+            ret.extend(res);
+        }
+    } else if ast.num_inputs == 3 {
+        if ast.diff_type {
+            panic!("diff_type is not supported for 3 inputs");
+        }
+        for lhs in types.iter() {
+            let lhs_type = TypeInfo::new(lhs);
+            let lhs_dtype = lhs_type.dtype;
+            let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+            let unroll_iter = (0..unroll).map(|i| quote! {
+                out.add(#i).write_unaligned(<#lhs_dtype as #compute_trait<#lhs_dtype>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned(), c.add(#i).read_unaligned()));
+            });
+            let res = quote! {
+                #lhs_dtype_enum => |a: usize, b: usize, c: usize, out: usize| {
+                    let a = a as *const #lhs_dtype;
+                    let b = b as *const #lhs_dtype;
+                    let c = c as *const #lhs_dtype;
+                    let out = out as *mut <#lhs_dtype as #promote_trait<#lhs_dtype>>::Output;
+                    unsafe {
+                        #(#unroll_iter)*
+                    }
+                },
+            };
+            ret.extend(res);
+        }
+    }
+
+    if ast.num_inputs == 3 {
+        quote! {
+            match a {
+                #ret
+            }
+        }
+        .into()
+    } else if ast.num_inputs == 2 {
+        if ast.diff_type {
+            quote! {
+                match (lhs, rhs) {
+                    #ret
+                }
+            }
+            .into()
+        } else {
+            quote! {
+                match lhs {
+                    #ret
+                }
+            }
+            .into()
+        }
+    } else if ast.num_inputs == 1 {
+        quote! {
+            match lhs {
+                #ret
+            }
+        }
+        .into()
+    } else {
+        panic!("num_inputs must be 1, 2, or 3");
+    }
+}
+
+/// implement simd dispatch kernel
+#[proc_macro]
+pub fn impl_dispatch_simd(input: TokenStream) -> TokenStream {
+    let ast = syn::parse_macro_input!(input as DispatchArgs);
+    let promote_trait = &ast.promote_trait;
+    let compute_trait = &ast.compute_trait;
+    let method = &ast.method;
+    let unroll = ast.unroll;
+    let mut ret = proc_macro2::TokenStream::new();
+
+    let types = [
+        ("bool", type_simd_lanes("bool"), "bool"),
+        ("bf16", type_simd_lanes("bf16"), "bf16"),
+        ("f16", type_simd_lanes("f16"), "f16"),
+        ("f32", type_simd_lanes("f32"), "f32"),
+        // ("f64", type_simd_lanes("f64"), "f64"),
+        ("i8", type_simd_lanes("i8"), "i8"),
+        ("i16", type_simd_lanes("i16"), "i16"),
+        ("i32", type_simd_lanes("i32"), "i32"),
+        ("i64", type_simd_lanes("i64"), "i64"),
+        ("u8", type_simd_lanes("u8"), "u8"),
+        ("u16", type_simd_lanes("u16"), "u16"),
+        ("u32", type_simd_lanes("u32"), "u32"),
+        // ("u64", type_simd_lanes("u64"), "u64"),
+        // ("isize", type_simd_lanes("isize"), "isize"),
+        // ("usize", type_simd_lanes("usize"), "usize"),
+    ];
+
+    if ast.num_inputs == 2 {
+        if ast.diff_type {
+            for (lhs_ty, lhs_lanes, lhs) in types.iter() {
+                for (rhs_ty, rhs_lanes, rhs) in types.iter() {
+                    let lhs_lanes = *lhs_lanes;
+                    let rhs_lanes = *rhs_lanes;
+                    let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
+                    let rhs_type = TypeInfo::new(&rhs_ty.to_lowercase());
+                    let lhs_simd: SimdType = (*lhs).into();
+                    let rhs_simd: SimdType = (*rhs).into();
+                    let lhs_dtype = lhs_type.dtype;
+                    let rhs_dtype = rhs_type.dtype;
+                    let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+                    let rhs_dtype_enum = rhs_dtype.to_dtype_enum();
+                    if lhs_lanes != rhs_lanes {
+                        ret.extend(quote! {
+                            (#lhs_dtype_enum, #rhs_dtype_enum) => {
+                                unreachable!()
+                            },
+                        });
+                        continue;
+                    }
+                    let is_normal_out_unary = compute_trait.to_string().contains("NormalOutUnary");
+                    let res = if !is_normal_out_unary {
+                        let unroll_iter = (0..unroll).map(|i| quote! {
+                            out.add(#i).write_unaligned(<#lhs_simd as #compute_trait<#rhs_simd>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                        });
+                        quote! {
+                            (#lhs_dtype_enum, #rhs_dtype_enum) => |a: usize, b: usize, out: usize| {
+                                let a = a as *const #lhs_simd;
+                                let b = b as *const #rhs_simd;
+                                let out = out as *mut <#lhs_simd as #promote_trait<#rhs_simd>>::Output;
+                                unsafe {
+                                    #(#unroll_iter)*
+                                }
+                            },
+                        }
+                    } else {
+                        let unroll_iter = (0..unroll).map(|i| quote! {
+                            out.add(#i).write_unaligned(<#lhs_simd as #compute_trait>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                        });
+                        quote! {
+                            (#lhs_dtype_enum, #rhs_dtype_enum) => |a: usize, b: usize, out: usize| {
+                                let a = a as *const #lhs_simd;
+                                let b = b as *const #rhs_simd;
+                                let out = out as *mut <#lhs_simd as #promote_trait<#rhs_simd>>::Output;
+                                unsafe {
+                                    #(#unroll_iter)*
+                                }
+                            },
+                        }
+                    };
+                    ret.extend(res);
+                }
+            }
+        } else {
+            for (lhs_ty, _, lhs) in types.iter() {
+                let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
+                let lhs_simd: SimdType = (*lhs).into();
+                let lhs_dtype = lhs_type.dtype;
+                let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+                let is_normal_out_unary = compute_trait.to_string().contains("NormalOutUnary");
+                let res = if !is_normal_out_unary {
+                    let unroll_iter = (0..unroll).map(|i| quote! {
+                        out.add(#i).write_unaligned(<#lhs_simd as #compute_trait<#lhs_simd>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                    });
+                    quote! {
+                        #lhs_dtype_enum => |a: usize, b: usize, out: usize| {
+                            let a = a as *const #lhs_simd;
+                            let b = b as *const #lhs_simd;
+                            let out = out as *mut <#lhs_simd as #promote_trait<#lhs_simd>>::Output;
+                            unsafe {
+                                #(#unroll_iter)*
+                            }
+                        },
+                    }
+                } else {
+                    let unroll_iter = (0..unroll).map(|i| quote! {
+                        out.add(#i).write_unaligned(<#lhs_simd as #compute_trait>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned()));
+                    });
+                    quote! {
+                        #lhs_dtype_enum => |a: usize, b: usize, out: usize| {
+                            let a = a as *const #lhs_simd;
+                            let b = b as *const #lhs_simd;
+                            let out = out as *mut <#lhs_simd as #promote_trait<#lhs_simd>>::Output;
+                            unsafe {
+                                #(#unroll_iter)*
+                            }
+                        },
+                    }
+                };
+                ret.extend(res);
+            }
+        }
+    } else if ast.num_inputs == 1 {
+        for (lhs_ty, _, lhs) in types.iter() {
+            let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
+            let lhs_simd: SimdType = (*lhs).into();
+            let lhs_dtype = lhs_type.dtype;
+            let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+            let unroll_iter = (0..unroll).map(|i| quote! {
+                out.add(#i).write_unaligned(<#lhs_simd as #compute_trait>::#method(a.add(#i).read_unaligned()));
+            });
+            let res = quote! {
+                #lhs_dtype_enum => |a: usize, out: usize| {
+                    let a = a as *const #lhs_simd;
+                    let out = out as *mut <#lhs_simd as #promote_trait>::Output;
+                    unsafe {
+                        #(#unroll_iter)*
+                    }
+                },
+            };
+            ret.extend(res);
+        }
+    } else if ast.num_inputs == 3 {
+        if ast.diff_type {
+            panic!("diff_type is not supported for 3 inputs");
+        }
+        for (lhs_ty, _, lhs) in types.iter() {
+            let lhs_type = TypeInfo::new(&lhs_ty.to_lowercase());
+            let lhs_simd: SimdType = (*lhs).into();
+            let lhs_dtype = lhs_type.dtype;
+            let lhs_dtype_enum = lhs_dtype.to_dtype_enum();
+            let unroll_iter = (0..unroll).map(|i| quote! {
+                out.add(#i).write_unaligned(<#lhs_simd as #compute_trait<#lhs_simd>>::#method(a.add(#i).read_unaligned(), b.add(#i).read_unaligned(), c.add(#i).read_unaligned()));
+            });
+            let res = quote! {
+                #lhs_dtype_enum => |a: usize, b: usize, c: usize, out: usize| {
+                    let a = a as *const #lhs_simd;
+                    let b = b as *const #lhs_simd;
+                    let c = c as *const #lhs_simd;
+                    let out = out as *mut <#lhs_simd as #promote_trait<#lhs_simd>>::Output;
+                    unsafe {
+                        #(#unroll_iter)*
+                    }
+                },
+            };
+            ret.extend(res);
+        }
+    }
+
+    if ast.num_inputs == 3 {
+        quote! {
+            match a {
+                #ret
+            }
+        }
+        .into()
+    } else if ast.num_inputs == 2 {
+        if ast.diff_type {
+            quote! {
+                match (lhs, rhs) {
+                    #ret
+                }
+            }
+            .into()
+        } else {
+            quote! {
+                match lhs {
+                    #ret
+                }
+            }
+            .into()
+        }
+    } else if ast.num_inputs == 1 {
+        quote! {
+            match lhs {
+                #ret
+            }
+        }
+        .into()
+    } else {
+        panic!("num_inputs must be 1, 2, or 3");
+    }
 }

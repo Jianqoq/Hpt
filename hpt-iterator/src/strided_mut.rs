@@ -48,7 +48,7 @@ pub mod simd_imports {
         /// # Returns
         ///
         /// A new instance of `StridedMutSimd`
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             let base = StridedSimd::new(tensor);
             let last_stride = base.last_stride;
             StridedMutSimd {
@@ -165,7 +165,7 @@ impl<'a, T: CommonBounds> StridedMut<'a, T> {
     /// # Returns
     ///
     /// A new instance of `StridedMut` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
         StridedMut {
             base: Strided::new(tensor),
             phantom: std::marker::PhantomData,

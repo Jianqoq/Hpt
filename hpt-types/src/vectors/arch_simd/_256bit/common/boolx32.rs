@@ -20,10 +20,6 @@ impl VecTrait<bool> for boolx32 {
     const SIZE: usize = 32;
     type Base = bool;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[bool]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let mut ret = boolx32::default();
         for i in 0..32 {

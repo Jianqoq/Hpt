@@ -11,6 +11,7 @@
 // static EPSILON: TestTypes = half::bf16::from_f32_const(1e-5);
 
 pub(crate) type TestTypes = f32;
+static DYN_TEST_TYPES: hpt_dyn::DType = hpt_dyn::DType::F32;
 static TCH_TEST_TYPES: tch::Kind = tch::Kind::Float;
 static TEST_RTOL: TestTypes = 1e-3;
 static TEST_ATOL: TestTypes = 1e-3;

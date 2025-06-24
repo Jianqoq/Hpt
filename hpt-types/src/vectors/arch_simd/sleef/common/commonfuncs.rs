@@ -1,7 +1,9 @@
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+use crate::arch_simd::sleef::arch::helper_avx512 as helper;
 #[cfg(all(
     target_arch = "x86_64",
     target_feature = "sse",
@@ -9,7 +11,7 @@ use crate::arch_simd::sleef::arch::helper_avx2 as helper;
 ))]
 use crate::arch_simd::sleef::arch::helper_sse as helper;
 
-use crate::sleef_types::{VDouble, VMask, Vopmask};
+use crate::sleef_types::{VDouble, VInt, VMask, Vopmask};
 use helper::{
     vabs_vd_vd, vadd64_vm_vm_vm, vadd_vd_vd_vd, vadd_vi_vi_vi, vand_vm_vm_vm, vand_vo_vo_vo,
     vandnot_vm_vm_vm, vcast_vd_d, vcast_vd_vi, vcast_vi_i, vcastu_vm_vi, veq64_vo_vm_vm,
@@ -198,11 +200,7 @@ pub(crate) unsafe fn visodd_vo_vd(d: VDouble) -> Vopmask {
     vneq_vo_vd_vd(vrint2_vd_vd(x), x)
 }
 
-#[cfg(not(target_feature = "avx512f"))]
-use crate::sleef_types::VInt;
-
 use super::dd::VDouble2;
-#[cfg(not(target_feature = "avx512f"))]
 #[inline(always)]
 pub(crate) unsafe fn vilogbk_vi_vd(d: VDouble) -> VInt {
     use helper::{
@@ -225,7 +223,6 @@ pub(crate) unsafe fn vilogbk_vi_vd(d: VDouble) -> VInt {
     q
 }
 
-#[cfg(not(target_feature = "avx512f"))]
 #[inline(always)]
 pub(crate) unsafe fn vilogb2k_vi_vd(d: VDouble) -> VInt {
     use helper::{vand_vi_vi_vi, vcast_vi_i, vcastu_vi_vm, vsrl_vi_vi_i, vsub_vi_vi_vi};

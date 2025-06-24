@@ -28,8 +28,8 @@ pub fn impl_simd_eval() -> TokenStream {
         let simd_ty = Ident::new(&simd_ty, proc_macro2::Span::call_site());
 
         let res = quote! {
-            impl Eval for #simd_ty::#simd_ty {
-                type Output = <#simd_ty::#simd_ty as SimdCmpPromote<#simd_ty::#simd_ty>>::Output;
+            impl Eval for #simd_ty {
+                type Output = <#simd_ty as SimdCmpPromote<#simd_ty>>::Output;
                 fn _is_nan(&self) -> Self::Output {
                     self.__is_nan()
                 }

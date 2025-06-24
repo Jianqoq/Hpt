@@ -38,11 +38,11 @@ where
         for i in 0..a_axes_dim {
             if axes[0][i] < 0 {
                 axes[0][i] += a_ndim as i64;
-                ShapeError::check_index_out_of_range(axes[0][i], a_ndim as i64)?;
+                ShapeError::check_index_out_of_range(axes[0][i] as usize, a_ndim as usize)?;
             }
             if axes[1][i] < 0 {
                 axes[1][i] += b_ndim as i64;
-                ShapeError::check_index_out_of_range(axes[1][i], b_ndim as i64)?;
+                ShapeError::check_index_out_of_range(axes[1][i] as usize, b_ndim as usize)?;
             }
             ShapeError::check_dim(
                 a_shape[axes[0][i] as usize] as usize,

@@ -35,15 +35,6 @@ impl VecTrait<u64> for u64x2 {
     const SIZE: usize = 2;
     type Base = u64;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u64]) {
-        unsafe {
-            _mm_storeu_si128(
-                &mut self.0,
-                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe {
             let arr: [u64; 2] = std::mem::transmute(self.0);

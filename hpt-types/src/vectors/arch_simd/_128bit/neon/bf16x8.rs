@@ -14,10 +14,6 @@ impl VecTrait<half::bf16> for bf16x8 {
     const SIZE: usize = 8;
     type Base = half::bf16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[half::bf16]) {
-        self.0.copy_from_slice(slice);
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         let [x0, x1] = self.to_2_f32vec();
         let [a0, a1] = a.to_2_f32vec();
@@ -164,6 +160,15 @@ impl bf16x8 {
             let result = vcombine_u16(high, low);
             std::mem::transmute(result)
         }
+    }
+}
+
+impl SimdSelect<bf16x8> for i16x8 {
+    #[inline(always)]
+    fn select(&self, true_val: bf16x8, false_val: bf16x8) -> bf16x8 {
+        use std::arch::aarch64::vbslq_u16;
+        let selected = unsafe { vbslq_u16(std::mem::transmute(self.0), std::mem::transmute(true_val.0), std::mem::transmute(false_val.0)) };
+        unsafe { bf16x8(std::mem::transmute(selected)) }
     }
 }
 

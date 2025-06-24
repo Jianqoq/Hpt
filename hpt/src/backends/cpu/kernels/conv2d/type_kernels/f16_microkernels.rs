@@ -36,7 +36,6 @@ impl Conv2dMicroKernel for crate::types::f16 {
         }
         use crate::conv2d_mixed_precision_micro_kernel;
         assert_eq!(nr, 2);
-        // neon has 32 registers, each has 128 bits, assume cache line size is 1024 bits
         conv2d_mixed_precision_micro_kernel!(x2x1, 2, 1, 4);
         conv2d_mixed_precision_micro_kernel!(x2x2, 2, 2, 4);
         conv2d_mixed_precision_micro_kernel!(x2x3, 2, 3, 4);

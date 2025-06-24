@@ -10,7 +10,7 @@ use hpt_types::vectors::traits::*;
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
+    mut inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
     strides: &[i64],
     shape: &[i64],
 ) {
@@ -18,11 +18,11 @@ fn update_prg2<T>(
         let j = j as usize;
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
         }
     }
 }
@@ -31,8 +31,8 @@ fn update_prg2<T>(
 fn update_prg2_softmax<T, O>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
-    res_ptr: &mut hpt_common::utils::pointer::Pointer<O>,
+    mut inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
+    mut res_ptr: &mut hpt_common::utils::pointer::Pointer<O>,
     strides: &[i64],
     res_strides: &[i64],
     shape: &[i64],
@@ -41,13 +41,13 @@ fn update_prg2_softmax<T, O>(
         let j = j as usize;
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
-            res_ptr.offset(res_strides[j]);
+            inp_ptr += strides[j];
+            res_ptr += res_strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
-            res_ptr.offset(-res_strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
+            res_ptr += -res_strides[j] * shape[j];
         }
     }
 }
@@ -56,8 +56,8 @@ fn update_prg2_softmax<T, O>(
 fn update_prg3_softmax<T, O>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut Pointer<T>,
-    res_ptr: &mut Pointer<O>,
+    mut inp_ptr: &mut Pointer<T>,
+    mut res_ptr: &mut Pointer<O>,
     strides: &[i64],
     res_strides: &[i64],
     shape: &[i64],
@@ -66,13 +66,13 @@ fn update_prg3_softmax<T, O>(
         let j = j as usize;
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
-            res_ptr.offset(res_strides[j]);
+            inp_ptr += strides[j];
+            res_ptr += res_strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
-            res_ptr.offset(-res_strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
+            res_ptr += -res_strides[j] * shape[j];
         }
     }
 }

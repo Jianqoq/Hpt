@@ -17,6 +17,32 @@ pub struct Pointer<T> {
 }
 
 impl<T> Pointer<T> {
+    /// return the length of the pointer
+    ///
+    /// # Returns
+    /// `i64`
+    #[inline(always)]
+    pub fn len(&self) -> i64 {
+        #[cfg(feature = "bound_check")]
+        return self.len;
+        #[cfg(not(feature = "bound_check"))]
+        return 0;
+    }
+    /// return a null pointer
+    ///
+    /// # Returns
+    /// `Pointer<T>`
+    pub fn null() -> Self {
+        #[cfg(feature = "bound_check")]
+        return Self {
+            ptr: std::ptr::null_mut(),
+            len: 0,
+        };
+        #[cfg(not(feature = "bound_check"))]
+        return Self {
+            ptr: std::ptr::null_mut(),
+        };
+    }
     /// return a slice of the pointer
     ///
     /// # Returns
@@ -32,11 +58,15 @@ impl<T> Pointer<T> {
     ///
     /// # Returns
     /// `Pointer<U>`
+    #[inline(always)]
     pub fn cast<U>(&self) -> Pointer<U> {
         #[cfg(feature = "bound_check")]
-        return Pointer::new(self.ptr as *mut U, self.len);
+        {
+            let new_len = self.len as usize * std::mem::size_of::<T>() / std::mem::size_of::<U>();
+            return Pointer::new(self.ptr as *mut U, new_len as i64);
+        }
         #[cfg(not(feature = "bound_check"))]
-        return Pointer::new(self.ptr as *mut U);
+        return Pointer::new(self.ptr as *mut U, 0);
     }
     /// return raw pointer
     ///
@@ -71,52 +101,24 @@ impl<T> Pointer<T> {
     /// let a = Pointer::<i32>::new(_a as *mut i32);
     /// assert_eq!(a.read(), 10);
     /// ```
-    #[cfg(not(feature = "bound_check"))]
     #[inline(always)]
-    pub fn new(ptr: *mut T) -> Self {
-        Self { ptr }
-    }
-
-    /// Wrap a raw pointer into a Pointer struct for supporting `Send` in multithreading, zero cost
-    ///
-    /// # Arguments
-    /// `ptr` - `*mut T`
-    ///
-    /// # Returns
-    /// `Pointer<T>`
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = 10i32;
-    /// let a = Pointer::<i32>::new(_a as *mut i32);
-    /// assert_eq!(a.read(), 10);
-    /// ```
-    #[cfg(feature = "bound_check")]
-    #[inline(always)]
+    #[allow(unused)]
     pub fn new(ptr: *mut T, len: i64) -> Self {
-        Self { ptr, len }
+        #[cfg(feature = "bound_check")]
+        return Self { ptr, len };
+        #[cfg(not(feature = "bound_check"))]
+        return Self { ptr };
     }
 
-    /// modify the value of the pointer in the address by the specified offset
+    /// copy the value from the source pointer to the current pointer
     ///
     /// # Arguments
-    /// `offset` - the offset from the current address
-    /// `value` - the value to be written
-    ///
-    /// # Example
-    /// ```
-    /// use tensor_pointer::Pointer;
-    /// let mut _a = unsafe { std::alloc::alloc(std::alloc::Layout::new::<i32>()) as *mut i32 };
-    /// let mut a = Pointer::<i32>::new(_a);
-    /// a.modify(0, 10);
-    /// assert_eq!(a.read(), 10);
-    /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
-    /// ```
+    /// `src` - the source pointer
+    /// `len` - the length of the value to be copied
     #[inline(always)]
-    pub fn modify(&mut self, offset: i64, value: T) {
+    pub unsafe fn copy_from_nonoverlapping(&mut self, src: &Self, len: usize) {
         unsafe {
-            self.ptr.offset(offset as isize).write(value);
+            self.ptr.copy_from_nonoverlapping(src.ptr, len);
         }
     }
 
@@ -135,10 +137,57 @@ impl<T> Pointer<T> {
     /// assert_eq!(a.read(), 10);
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
+    // #[inline(always)]
+    // pub fn add(&mut self, offset: usize) -> Self {
+    //     unsafe {
+    //         self.ptr = self.ptr.add(offset);
+    //     }
+    //     #[cfg(feature = "bound_check")]
+    //     return Self {
+    //         ptr: self.ptr,
+    //         len: self.len,
+    //     };
+    //     #[cfg(not(feature = "bound_check"))]
+    //     return Self { ptr: self.ptr };
+    // }
+
+    /// inplace offset the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
+    /// # Returns
     #[inline(always)]
-    pub fn add(&mut self, offset: usize) {
+    #[allow(unused)]
+    pub fn offset(&self, offset: isize) -> Self {
         unsafe {
-            self.ptr = self.ptr.add(offset);
+            #[cfg(feature = "bound_check")]
+            return Self {
+                ptr: self.ptr.offset(offset as isize),
+                len: self.len - offset as i64,
+            };
+            #[cfg(not(feature = "bound_check"))]
+            return Self { ptr: self.ptr.offset(offset as isize) };
+        }
+    }
+
+    /// add the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
+    /// # Returns
+    #[inline(always)]
+    #[allow(unused)]
+    pub fn add(&self, offset: usize) -> Self {
+        unsafe {
+            #[cfg(feature = "bound_check")]
+            return Self {
+                ptr: self.ptr.add(offset),
+                len: self.len - offset as i64,
+            };
+            #[cfg(not(feature = "bound_check"))]
+            return Self { ptr: self.ptr.add(offset) };
         }
     }
 
@@ -157,15 +206,159 @@ impl<T> Pointer<T> {
     /// assert_eq!(a.read(), 10);
     /// unsafe { std::alloc::dealloc(_a as *mut u8, std::alloc::Layout::new::<i32>()); }
     /// ```
+    // #[inline(always)]
+    // pub fn offset(&mut self, offset: i64) -> Self {
+    //     unsafe {
+    //         self.ptr = self.ptr.offset(offset as isize);
+    //     }
+    //     #[cfg(feature = "bound_check")]
+    //     return Self {
+    //         ptr: self.ptr,
+    //         len: self.len,
+    //     };
+    //     #[cfg(not(feature = "bound_check"))]
+    //     return Self { ptr: self.ptr };
+    // }
+
+    /// offset the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
+    /// # Returns
     #[inline(always)]
-    pub fn offset(&mut self, offset: i64) {
+    pub fn offset_addr(&self, offset: i64) -> usize {
         unsafe {
-            self.ptr = self.ptr.offset(offset as isize);
+            let ptr = self.ptr.offset(offset as isize);
+            ptr as usize
+        }
+    }
+
+    /// add the pointer in the current address
+    ///
+    /// # Arguments
+    /// `offset` - the offset to be added
+    ///
+    /// # Returns
+    #[inline(always)]
+    pub fn add_addr(&self, offset: usize) -> usize {
+        unsafe {
+            let ptr = self.ptr.add(offset);
+            ptr as usize
+        }
+    }
+
+    /// return the address of the pointer
+    ///
+    /// # Returns
+    /// `usize`
+    #[inline(always)]
+    pub fn addr(&self) -> usize {
+        self.ptr as usize
+    }
+
+    /// read the value of the pointer in the current address
+    ///
+    /// # Returns
+    /// `T`
+    #[inline(always)]
+    pub fn read_unaligned(&self) -> T {
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.read_unaligned() }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            unsafe { self.ptr.read_unaligned() }
+        }
+    }
+
+    /// check if the read will fail
+    ///
+    /// # Returns
+    /// `bool`
+    #[inline(always)]
+    #[cfg(feature = "bound_check")]
+    pub fn will_read_fail(&self) -> bool {
+        self.len < 1
+    }
+
+    /// write the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `value` - the value to be written
+    #[inline(always)]
+    pub fn write_unaligned(&self, value: T) {
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.write_unaligned(value) }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        {
+            unsafe { self.ptr.write_unaligned(value) }
+        }
+    }
+
+    /// read the value of the pointer in the current address
+    ///
+    /// # Returns
+    /// `T`
+    #[inline(always)]
+    #[track_caller]
+    pub fn read(&self) -> T {
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.read() }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe {
+            self.ptr.read()
+        }
+    }
+
+    /// write the value of the pointer in the current address
+    ///
+    /// # Arguments
+    /// `value` - the value to be written
+    #[inline(always)]
+    pub fn write(&self, value: T) {
+        #[cfg(feature = "bound_check")]
+        {
+            if self.len < 1 {
+                panic!("pointer length is less than the size of the type");
+            }
+            unsafe { self.ptr.write(value) }
+        }
+        #[cfg(not(feature = "bound_check"))]
+        unsafe {
+            self.ptr.write(value)
         }
     }
 }
 
 unsafe impl<T> Send for Pointer<T> {}
+
+impl<T> Index<i32> for Pointer<T> {
+    type Output = T;
+    fn index(&self, index: i32) -> &Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            if index < 0 || index as i64 >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
+            }
+        }
+        unsafe { &*self.ptr.offset(index as isize) }
+    }
+}
 
 impl<T> Index<i64> for Pointer<T> {
     type Output = T;
@@ -206,6 +399,18 @@ impl<T: Display> Index<usize> for Pointer<T> {
     }
 }
 
+impl<T: Display> IndexMut<i32> for Pointer<T> {
+    fn index_mut(&mut self, index: i32) -> &mut Self::Output {
+        #[cfg(feature = "bound_check")]
+        {
+            if index < 0 || index as i64 >= (self.len as i64) {
+                panic!("index out of bounds. index: {}, len: {}", index, self.len);
+            }
+        }
+        unsafe { &mut *self.ptr.offset(index as isize) }
+    }
+}
+
 impl<T: Display> IndexMut<i64> for Pointer<T> {
     fn index_mut(&mut self, index: i64) -> &mut Self::Output {
         #[cfg(feature = "bound_check")]
@@ -243,6 +448,7 @@ impl<T: Display> IndexMut<usize> for Pointer<T> {
 }
 
 impl<T> AddAssign<usize> for Pointer<T> {
+    #[track_caller]
     fn add_assign(&mut self, rhs: usize) {
         #[cfg(feature = "bound_check")]
         {
@@ -262,7 +468,7 @@ impl<T> Add<usize> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.add(rhs),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]
@@ -304,11 +510,11 @@ impl<T> Add<usize> for &mut Pointer<T> {
     fn add(self, rhs: usize) -> Self::Output {
         #[cfg(feature = "bound_check")]
         unsafe {
-            Pointer::new(self.ptr.add(rhs), self.len)
+            Pointer::new(self.ptr.add(rhs), self.len - rhs as i64)
         }
         #[cfg(not(feature = "bound_check"))]
         unsafe {
-            Pointer::new(self.ptr.add(rhs))
+            Pointer::new(self.ptr.add(rhs), 0)
         }
     }
 }
@@ -333,7 +539,7 @@ impl<T> Add<isize> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.offset(rhs),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]
@@ -346,6 +552,7 @@ impl<T> Add<isize> for Pointer<T> {
 }
 
 impl<T> AddAssign<i64> for Pointer<T> {
+    #[track_caller]
     fn add_assign(&mut self, rhs: i64) {
         #[cfg(feature = "bound_check")]
         {
@@ -365,7 +572,7 @@ impl<T> Add<i64> for Pointer<T> {
         unsafe {
             Self {
                 ptr: self.ptr.offset(rhs as isize),
-                len: self.len,
+                len: self.len - rhs as i64,
             }
         }
         #[cfg(not(feature = "bound_check"))]

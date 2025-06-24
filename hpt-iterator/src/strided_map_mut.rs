@@ -50,7 +50,7 @@ pub mod strided_map_mut_simd {
         /// # Returns
         ///
         /// A new instance of `StridedMapMutSimd` initialized with the provided tensor.
-        pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(res_tensor: U) -> Self {
             StridedMapMutSimd {
                 base: ParStridedMutSimd::new(res_tensor),
                 phantom: std::marker::PhantomData,
@@ -184,7 +184,7 @@ where
     /// # Returns
     ///
     /// A new instance of `StridedMapMut` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(res_tensor: U) -> Self {
+    pub fn new<U: TensorInfo>(res_tensor: U) -> Self {
         StridedMapMut {
             base: ParStridedMut::new(res_tensor),
             phantom: std::marker::PhantomData,

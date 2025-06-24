@@ -53,10 +53,18 @@ pub fn process_axes<T: Into<Axis>>(
         visited.insert(axis);
         if axis < 0 {
             let val = axis + ndim;
-            ShapeError::check_index_out_of_range(val, ndim)?;
+            if ndim > 0 {
+                ShapeError::check_index_out_of_range(
+                    val.try_into()
+                        .expect("axis is still negative after adding ndim"),
+                    ndim as usize,
+                )?;
+            }
             new_axes.push(val as usize);
         } else {
-            ShapeError::check_index_out_of_range(axis, ndim)?;
+            if ndim > 0 {
+                ShapeError::check_index_out_of_range(axis as usize, ndim as usize)?;
+            }
             new_axes.push(axis as usize);
         }
     }

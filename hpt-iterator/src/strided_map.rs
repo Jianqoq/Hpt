@@ -53,7 +53,7 @@ pub mod strided_map_simd {
                 + Sync
                 + Send
                 + 'a,
-            U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
+            U: Clone + TensorInfo + TensorCreator<Output = U>,
             <I as IterGetSetSimd>::Item: Send,
             <U as TensorCreator>::Meta: CommonBounds,
             <<U as TensorCreator>::Meta as TypeCommon>::Vec: Send,
@@ -109,7 +109,7 @@ impl<'a, I: 'a + IterGetSet<Item = T>, T: 'a, F> StridedMap<'a, I, T, F> {
     pub fn collect<U>(self) -> U
     where
         F: Fn(T) -> U::Meta + Sync + Send + 'a,
-        U: Clone + TensorInfo<U::Meta> + TensorCreator<Output = U>,
+        U: Clone + TensorInfo + TensorCreator<Output = U>,
         <I as IterGetSet>::Item: Send,
         <U as TensorCreator>::Meta: CommonBounds,
     {

@@ -57,6 +57,22 @@ impl Layout {
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }
+
+    /// Returns the size of the outer loop
+    pub fn outer_loop_size(&self) -> i64 {
+        let inner_loop_size = *self.shape.last().unwrap_or(&1);
+        self.size() / inner_loop_size
+    }
+
+    /// Returns the size of the inner loop
+    pub fn inner_loop_size(&self) -> i64 {
+        *self.shape.last().unwrap_or(&1)
+    }
+
+    /// Returns the most inner dimension's stride
+    pub fn last_stride(&self) -> i64 {
+        *self.strides.last().unwrap_or(&0)
+    }
 }
 
 // Implementing the From trait for the `Layout` struct, when the user pass any of the following types, it will be converted to `Layout` automatically

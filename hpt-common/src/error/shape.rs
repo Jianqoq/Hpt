@@ -172,6 +172,15 @@ pub enum ShapeError {
         /// Location where error occurred
         location: &'static Location<'static>,
     },
+
+    /// Any ShapeError
+    #[error("ShapeError: {message} at {location}")]
+    AnyError {
+        /// Message describing the error
+        message: String,
+        /// Location where error occurred
+        location: &'static Location<'static>,
+    },
 }
 
 impl ShapeError {
@@ -275,11 +284,11 @@ impl ShapeError {
 
     /// Check if the index is out of range
     #[track_caller]
-    pub fn check_index_out_of_range(index: i64, dim: i64) -> Result<(), Self> {
-        if index >= dim || index < 0 {
+    pub fn check_index_out_of_range(index: usize, dim: usize) -> Result<(), Self> {
+        if index >= dim {
             return Err(Self::DimOutOfRange {
-                expected: 0..dim,
-                actual: index,
+                expected: 0..dim as i64,
+                actual: index as i64,
                 location: Location::caller(),
             });
         }

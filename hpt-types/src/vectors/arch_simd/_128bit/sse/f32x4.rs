@@ -50,16 +50,6 @@ impl VecTrait<f32> for f32x4 {
     const SIZE: usize = 4;
     type Base = f32;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[f32]) {
-        unsafe {
-            assert_eq!(slice.len(), 4);
-            _mm_storeu_ps(
-                &mut self.0 as *mut _ as *mut f32,
-                _mm_loadu_ps(slice.as_ptr()),
-            );
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         #[cfg(all(target_arch = "x86_64", not(target_feature = "fma")))]
         unsafe {

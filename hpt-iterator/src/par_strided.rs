@@ -82,7 +82,7 @@ pub mod par_strided_simd {
         }
 
         /// Create a new parallel strided iterator for SIMD operations.
-        pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
+        pub fn new<U: TensorInfo>(tensor: U) -> Self {
             let inner_loop_size = *tensor.shape().last().unwrap() as usize;
             let outer_loop_size = tensor.size() / inner_loop_size;
             let num_threads;
@@ -192,11 +192,11 @@ pub mod par_strided_simd {
                 let j = j as usize;
                 if self.prg[j] < self.shape()[j] {
                     self.prg[j] += 1;
-                    self.ptr.offset(self.strides()[j]);
+                    self.ptr += self.strides()[j];
                     break;
                 } else {
                     self.prg[j] = 0;
-                    self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+                    self.ptr += -self.strides()[j] * self.shape()[j];
                 }
             }
         }
@@ -390,9 +390,8 @@ impl<T: CommonBounds> ParStrided<T> {
     /// # Returns
     ///
     /// A new instance of `ParStrided` initialized with the provided tensor.
-    pub fn new<U: TensorInfo<T>>(tensor: U) -> Self {
-        let inner_loop_size = tensor.shape()[tensor.shape().len() - 1] as usize;
-        let outer_loop_size = tensor.size() / inner_loop_size;
+    pub fn new<U: TensorInfo>(tensor: U) -> Self {
+        let outer_loop_size = tensor.layout().outer_loop_size() as usize;
         let num_threads;
         if outer_loop_size < rayon::current_num_threads() {
             num_threads = outer_loop_size;
@@ -408,7 +407,7 @@ impl<T: CommonBounds> ParStrided<T> {
             intervals: Arc::new(intervals),
             start_index: 0,
             end_index: len,
-            last_stride: tensor.strides()[tensor.strides().len() - 1],
+            last_stride: tensor.layout().last_stride(),
         }
     }
     /// Performs a parallel fold (reduce) operation over the tensor elements.
@@ -530,11 +529,11 @@ impl<T: CommonBounds> IterGetSet for ParStrided<T> {
             let j = j as usize;
             if self.prg[j] < self.shape()[j] {
                 self.prg[j] += 1;
-                self.ptr.offset(self.strides()[j]);
+                self.ptr += self.strides()[j];
                 break;
             } else {
                 self.prg[j] = 0;
-                self.ptr.offset(-self.strides()[j] * self.shape()[j]);
+                self.ptr += -self.strides()[j] * self.shape()[j];
             }
         }
     }
@@ -577,7 +576,7 @@ where
                 amount /= self.shape()[j] as usize;
                 index += curent_shape_prg[j] * self.strides()[j];
             }
-            self.ptr.offset(index);
+            self.ptr += index;
             self.prg = curent_shape_prg;
             let mut new_shape = self.shape().to_vec();
             new_shape.iter_mut().for_each(|x| {

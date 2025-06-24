@@ -23,7 +23,7 @@ fn test_reshape_err() {
 fn test_broadcast() {
     let a = Layout::from(&Shape::from([5, 2, 10]));
     let b = Layout::from(&Shape::from([5, 1, 10]));
-    let c = a.broadcast(&b).unwrap();
+    let c = a.broadcast(b.shape()).unwrap();
     assert_eq!(c.shape().inner(), &[5, 2, 10]);
 }
 
@@ -32,7 +32,7 @@ fn test_broadcast_err() {
     let a = Layout::from(&Shape::from([5, 2, 10]));
     let b = Layout::from(&Shape::from([5, 1, 11]));
     assert!(a
-        .broadcast(&b)
+        .broadcast(b.shape())
         .unwrap_err()
         .to_string()
         .contains("Broadcasting error: broadcast failed at index 2, lhs shape: [5, 2, 10], rhs shape: [5, 1, 11]"));

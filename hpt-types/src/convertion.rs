@@ -9,8 +9,11 @@ use crate::dtype::TypeCommon;
     not(target_feature = "avx2")
 ))]
 use crate::simd::_128bit::*;
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::simd::_256bit::*;
+
+#[cfg(target_feature = "avx512f")]
+use crate::simd::_512bit::*;
 
 /// Convertor trait
 ///
@@ -52,10 +55,7 @@ pub(crate) trait Convertor {
     fn to_complex64(self) -> Complex64;
 }
 
-/// VecConvertor trait
-///
-/// This trait is used to convert a simd vector to another type
-#[cfg(target_feature = "avx2")]
+#[cfg(all(target_feature = "avx2", not(target_feature = "avx512f")))]
 pub(crate) trait VecConvertor: Sized {
     /// convert the value to boolx32
     fn to_bool(self) -> boolx32 {
@@ -126,6 +126,62 @@ pub(crate) trait VecConvertor: Sized {
         unreachable!()
     }
 }
+
+#[cfg(target_feature = "avx512f")]
+pub(crate) trait VecConvertor: Sized {
+    fn to_bool(self) -> boolx64 {
+        unreachable!()
+    }
+    fn to_u8(self) -> u8x64 {
+        unreachable!()
+    }
+    fn to_u16(self) -> u16x32 {
+        unreachable!()
+    }
+    fn to_u32(self) -> u32x16 {
+        unreachable!()
+    }
+    fn to_u64(self) -> u64x8 {
+        unreachable!()
+    }
+    fn to_usize(self) -> usizex8 {
+        unreachable!()
+    }
+    fn to_i8(self) -> i8x64 {
+        unreachable!()
+    }
+    fn to_i16(self) -> i16x32 {
+        unreachable!()
+    }
+    fn to_i32(self) -> i32x16 {
+        unreachable!()
+    }
+    fn to_i64(self) -> i64x8 {
+        unreachable!()
+    }
+    fn to_isize(self) -> isizex8 {
+        unreachable!()
+    }
+    fn to_f32(self) -> f32x16 {
+        unreachable!()
+    }
+    fn to_f64(self) -> f64x8 {
+        unreachable!()
+    }
+    fn to_f16(self) -> f16x32 {
+        unreachable!()
+    }
+    fn to_bf16(self) -> bf16x32 {
+        unreachable!()
+    }
+    fn to_complex32(self) -> cplx32x8 {
+        unreachable!()
+    }
+    fn to_complex64(self) -> cplx64x4 {
+        unreachable!()
+    }
+}
+
 
 #[cfg(all(
     any(target_feature = "sse", target_arch = "arm", target_arch = "aarch64"),

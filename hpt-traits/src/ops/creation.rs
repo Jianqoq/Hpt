@@ -1,16 +1,7 @@
 use hpt_common::{error::base::TensorError, shape::shape::Shape};
-use hpt_types::arch_simd as simd;
 use hpt_types::type_promote::FloatOutBinary;
 use hpt_types::{dtype::TypeCommon, into_scalar::Cast, type_promote::NormalOut};
-#[cfg(target_feature = "avx2")]
-type BoolVector = simd::_256bit::boolx32;
-#[cfg(any(
-    all(not(target_feature = "avx2"), target_feature = "sse"),
-    target_arch = "arm",
-    target_arch = "aarch64",
-    target_feature = "neon"
-))]
-type BoolVector = simd::_128bit::boolx16;
+type BoolVector = <bool as TypeCommon>::Vec;
 
 /// A trait defines a set of functions to create tensors.
 pub trait TensorCreator

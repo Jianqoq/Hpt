@@ -40,7 +40,7 @@ impl MatmulMicroKernel for u8 {
             x1x14, x1x15, x1x16,
         ][mr - 1]
     }
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -54,6 +54,8 @@ impl MatmulMicroKernel for u8 {
         i64,
         bool,
         bool,
+        usize,
+        usize,
         F,
         G,
     ) {

@@ -22,15 +22,15 @@ macro_rules! argmax_kernel {
         for j in (0..$shape_len - 1).rev() {
             if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.prg[j as usize] += 1;
-                $a_ptr.offset($iterator.strides[j as usize]);
+                $a_ptr += $iterator.strides[j as usize];
                 break;
             } else {
                 $iterator.prg[j as usize] = 0;
-                $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
+                $a_ptr += -$iterator.strides[j as usize] * $iterator.a_shape[j as usize];
             }
         }
         unsafe { $result_ptr.ptr.write(max_index.cast()) };
-        $result_ptr.add(1);
+        $result_ptr+= 1i64;
     };
 }
 
@@ -58,15 +58,15 @@ macro_rules! argmin_kernel {
         for j in (0..$shape_len - 1).rev() {
             if $iterator.prg[j as usize] < $iterator.a_shape[j as usize] {
                 $iterator.prg[j as usize] += 1;
-                $a_ptr.offset($iterator.strides[j as usize]);
+                $a_ptr += $iterator.strides[j as usize];
                 break;
             } else {
                 $iterator.prg[j as usize] = 0;
-                $a_ptr.offset(-$iterator.strides[j as usize] * $iterator.a_shape[j as usize]);
+                $a_ptr += -$iterator.strides[j as usize] * $iterator.a_shape[j as usize];
             }
         }
         unsafe { $result_ptr.ptr.write(max_index.cast()) };
-        $result_ptr.add(1);
+        $result_ptr += 1i64;
     };
 }
 

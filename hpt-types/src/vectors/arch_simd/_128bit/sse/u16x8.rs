@@ -29,15 +29,6 @@ impl VecTrait<u16> for u16x8 {
     const SIZE: usize = 8;
     type Base = u16;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[u16]) {
-        unsafe {
-            _mm_storeu_si128(
-                &mut self.0,
-                _mm_loadu_si128(slice.as_ptr() as *const __m128i),
-            )
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { u16x8(_mm_add_epi16(self.0, _mm_mullo_epi16(a.0, b.0))) }
     }

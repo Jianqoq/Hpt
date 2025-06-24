@@ -51,14 +51,11 @@ where
                 location: Location::caller(),
             })
         })?;
-        let mut allocator = A::new();
+        let allocator = A::new();
         let allocate_res = allocator.allocate(layout, DEVICE)?;
         let ptr = allocate_res.get_ptr();
         Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),
@@ -88,14 +85,11 @@ where
                 location: Location::caller(),
             })
         })?;
-        let mut allocator = A::new();
+        let allocator = A::new();
         let allocate_res = allocator.allocate_zeroed(layout, DEVICE)?;
         let ptr = allocate_res.get_ptr();
         Ok(_Tensor {
-            #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, size as i64),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(res_shape.clone()),
             mem_layout: Arc::new(layout),

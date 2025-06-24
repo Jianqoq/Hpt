@@ -8,17 +8,17 @@ use hpt_types::vectors::traits::*;
 use paste::paste;
 
 #[inline]
-fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
+fn update_prg<T>(prg: &mut [i64], mut inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len() - 1).rev() {
         if prg[j] < shape[j] - 1
         /*we need to subtract one because we didn't subtract it before we execute the kernel*/
         {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * (shape[j] - 1));
+            inp_ptr += -strides[j] * (shape[j] - 1);
         }
     }
 }
@@ -28,7 +28,7 @@ fn update_prg<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], sha
 fn update_prg2<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
+    mut inp_ptr: &mut hpt_common::utils::pointer::Pointer<T>,
     strides: &[i64],
     shape: &[i64],
 ) {
@@ -36,11 +36,11 @@ fn update_prg2<T>(
         let j = j as usize;
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
         }
     }
 }
@@ -50,7 +50,7 @@ fn update_prg2<T>(
 fn update_prg3<T>(
     prg: &mut [i64],
     shape_len: i64,
-    inp_ptr: &mut Pointer<T>,
+    mut inp_ptr: &mut Pointer<T>,
     strides: &[i64],
     shape: &[i64],
 ) {
@@ -58,27 +58,27 @@ fn update_prg3<T>(
         let j = j as usize;
         if prg[j] < shape[j] {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * shape[j]);
+            inp_ptr += -strides[j] * shape[j];
         }
     }
 }
 
 #[inline]
-fn update_prg4<T>(prg: &mut [i64], inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
+fn update_prg4<T>(prg: &mut [i64], mut inp_ptr: &mut Pointer<T>, strides: &[i64], shape: &[i64]) {
     for j in (0..strides.len()).rev() {
         if prg[j] < shape[j] - 1
         /*we need to subtract one because we didn't subtract it before we execute the kernel*/
         {
             prg[j] += 1;
-            inp_ptr.offset(strides[j]);
+            inp_ptr += strides[j];
             break;
         } else {
             prg[j] = 0;
-            inp_ptr.offset(-strides[j] * (shape[j] - 1));
+            inp_ptr += -strides[j] * (shape[j] - 1);
         }
     }
 }
@@ -102,7 +102,7 @@ macro_rules! gen_kernel {
         let origin_ptr = $inp_ptr.clone();
         for i in 0..$num_largest_vecs {
             $inp_ptr = origin_ptr.clone();
-            $inp_ptr.offset(i as i64 * ($unroll_num * $vec_size) as i64);
+            $inp_ptr += i as i64 * ($unroll_num * $vec_size) as i64;
                 paste! {
                     $(
                     let mut [<res_vec $idx>] = unsafe {
@@ -174,7 +174,7 @@ pub(crate) fn fast_reduce_simd<T, O, F, F2, F3, F4, F5, F6>(
     F5: Fn(O::Vec, O::Vec) -> O::Vec,
     F6: Fn(O::Vec) -> O::Vec,
 {
-    use crate::REGNUM;
+    use hpt_types::REGNUM;
 
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
@@ -315,7 +315,7 @@ macro_rules! gen_kernel2 {
         unsafe {
             for i in 0..$num_largest_vecs {
                 $inp_ptr = origin_ptr.clone();
-                $inp_ptr.offset(i as i64 * ($unroll_num * $vec_size) as i64);
+                $inp_ptr += i as i64 * ($unroll_num * $vec_size) as i64;
                     paste! {
                         $(
                         let mut [<res_vec $idx>] = O::Vec::from_ptr($res_ptr.ptr.offset((i * $unroll_num + ($idx - 1)) * O::Vec::SIZE as isize));
@@ -392,7 +392,7 @@ macro_rules! gen_kernel3 {
                 [$($idx),*]
             );
             update_prg3($prg2, $shape_len, &mut $inp_ptr, $inp_strides, $inp_shape);
-            $res_ptr.offset($inner_loop_size as i64);
+            $res_ptr += $inner_loop_size as i64;
             $prg1.iter_mut().for_each(|x| {
                 *x = 0;
             });
@@ -431,7 +431,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
 {
     use std::ops::IndexMut;
 
-    use crate::REGNUM;
+    use hpt_types::REGNUM;
 
     let origin = inp_ptr.clone(); // save original inp_ptr
     let origin_res = res_ptr.clone(); // save original res_ptr
@@ -513,7 +513,7 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
                     }
                 }
             }
-            res_ptr.offset(inner_loop_size as i64);
+            res_ptr += inner_loop_size as i64;
             prg1.iter_mut().for_each(|x| {
                 *x = 0;
             });
@@ -522,8 +522,8 @@ pub(crate) fn reduce_dim_not_include_simd<T, O, F, F2, F3, F4, F5, F6>(
     let remain_vec = remain_vec as u32;
     inp_ptr = origin.clone(); // reset inp_ptr
     res_ptr = origin_res.clone(); // reset res_ptr
-    inp_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64));
-    res_ptr.offset((num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64));
+    inp_ptr += (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64);
+    res_ptr += (num_largest_vecs as i64) * (REGNUM as i64) * (O::Vec::SIZE as i64);
     origin_prg2.iter().enumerate().for_each(|(i, x)| {
         *prg2.index_mut(i) = *x;
     });

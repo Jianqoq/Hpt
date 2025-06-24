@@ -89,8 +89,8 @@ where
         &buffer_tensor,
         &kernels.reshape(&[kh * kw * in_channels, out_channels])?,
         Some(output),
-        None,
-        None,
+        None::<fn(T, usize, usize) -> T>,
+        None::<fn(T::Vec, usize, usize) -> T::Vec>,
     )?
     .reshape(output_shape)?;
 

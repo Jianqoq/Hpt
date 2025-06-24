@@ -7,17 +7,19 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 tch = { workspace = true }
 hpt = { path = "../hpt" }
+hpt-dyn = { path = "../hpt-dyn" }
 criterion = { workspace = true }
 half = { workspace = true }
 gnuplot = { workspace = true }
 num_cpus = { workspace = true }
 paste = { workspace = true }
 rayon = { workspace = true }
-candle-core = { workspace = true }
-candle-nn = { workspace = true }
+# candle-core = { workspace = true }
+# candle-nn = { workspace = true }
 ndarray = { workspace = true }
 ndarray-rand = { workspace = true }
 libm = { workspace = true }
+spindle = { workspace = true }
 
 [features]
 fft = []

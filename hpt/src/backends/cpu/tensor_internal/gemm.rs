@@ -14,6 +14,7 @@ use hpt_traits::ops::creation::TensorCreator;
 use hpt_traits::ops::shape_manipulate::ShapeManipulate;
 use hpt_traits::tensor::{CommonBounds, TensorInfo};
 use hpt_types::{into_scalar::Cast, type_promote::NormalOut};
+use num_cpus::get_physical;
 
 type GemmOutput<A, B, const DEVICE: usize, A2> =
     _Tensor<<A as NormalOut<B>>::Output, Cpu, DEVICE, A2>;
@@ -71,7 +72,7 @@ where
                 conj_dst,
                 conj_lhs,
                 conj_rhs,
-                gemm::Parallelism::Rayon(rayon::current_num_threads()),
+                gemm::Parallelism::Rayon(rayon::current_num_threads().min(get_physical())),
             );
         }
         Ok(res)
@@ -134,14 +135,14 @@ where
         for i in 0..num_threads {
             let (start, end) = intervals[i];
             res_ptrs.push(res_ptr.clone());
-            res_ptr.add((end - start) * res_inner_matrix_size);
+            res_ptr+=(end - start) * res_inner_matrix_size;
             let mut prg: Vec<i64> = vec![0; iterate_shape.len()];
             let mut amount_cpy = amount as i64;
             for j in (0..=iterate_shape.len() - 1).rev() {
                 prg[j] = amount_cpy % (iterate_shape[j] + 1);
                 amount_cpy /= iterate_shape[j] + 1;
-                a_ptr.offset(prg[j] * a_strides[j]);
-                b_ptr.offset(prg[j] * b_strides[j]);
+                a_ptr += prg[j] * a_strides[j];
+                b_ptr += prg[j] * b_strides[j];
             }
             amount += end - start;
             a_ptrs.push(a_ptr);
@@ -194,17 +195,17 @@ where
                                 conj_rhs,
                                 gemm::Parallelism::Rayon(threads),
                             );
-                            res_ptr.add(res_inner_matrix_size);
+                            res_ptr += res_inner_matrix_size;
                             for j in 0..shape.len() {
                                 if prg[j] < shape[j] {
                                     prg[j] += 1;
-                                    a_ptr.offset(__a_strides[j]);
-                                    b_ptr.offset(__b_strides[j]);
+                                    a_ptr += __a_strides[j];
+                                    b_ptr += __b_strides[j];
                                     break;
                                 } else {
                                     prg[j] = 0;
-                                    a_ptr.offset(-__a_strides[j] * shape[j]);
-                                    b_ptr.offset(-__b_strides[j] * shape[j]);
+                                    a_ptr += -__a_strides[j] * shape[j];
+                                    b_ptr += -__b_strides[j] * shape[j];
                                 }
                             }
                         }

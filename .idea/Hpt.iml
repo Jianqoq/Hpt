@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<module type="EMPTY_MODULE" version="4">
+  <component name="NewModuleRootManager">
+    <content url="file://$MODULE_DIR$">
+      <sourceFolder url="file://$MODULE_DIR$/hpt-allocator/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-bench/benches" isTestSource="true" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-bench/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-codegen/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-common/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-conv/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-cudakernels/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-dataloader/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-display/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-dyn/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-examples/examples" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-examples/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-iterator/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-macros/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-matmul/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-tests/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-traits/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt-types/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/hpt/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/src" isTestSource="false" />
+      <excludeFolder url="file://$MODULE_DIR$/target" />
+    </content>
+    <orderEntry type="inheritedJdk" />
+    <orderEntry type="sourceFolder" forTests="false" />
+  </component>
+</module>

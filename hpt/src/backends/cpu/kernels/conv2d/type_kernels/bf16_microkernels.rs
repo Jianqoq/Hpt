@@ -36,19 +36,17 @@ impl Conv2dMicroKernel for crate::types::bf16 {
         }
         use crate::conv2d_mixed_precision_micro_kernel;
         assert_eq!(nr, 2);
-        conv2d_mixed_precision_micro_kernel!(x4x1, 2, 1, 4);
-        conv2d_mixed_precision_micro_kernel!(x4x2, 2, 2, 4);
-        conv2d_mixed_precision_micro_kernel!(x4x3, 2, 3, 4);
-        conv2d_mixed_precision_micro_kernel!(x4x4, 2, 4, 4);
-        conv2d_mixed_precision_micro_kernel!(x4x5, 2, 5, 4);
-        conv2d_mixed_precision_micro_kernel!(x4x6, 2, 6, 4);
-        [x4x1, x4x2, x4x3, x4x4, x4x5, x4x6][mr - 1]
+        conv2d_mixed_precision_micro_kernel!(x2x1, 2, 1, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x2, 2, 2, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x3, 2, 3, 4);
+        conv2d_mixed_precision_micro_kernel!(x2x4, 2, 4, 4);
+        [x2x1, x2x2, x2x3, x2x4][mr - 1]
     }
     fn get_max_mixed_precision_nr() -> usize {
         2
     }
     fn get_max_mixed_precision_mr() -> usize {
-        6
+        4
     }
 }
 

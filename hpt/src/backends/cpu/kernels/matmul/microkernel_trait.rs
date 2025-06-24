@@ -15,7 +15,6 @@ where
         {
             use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
             define_matmul_micro_kernel!(x2x2, 2, 2);
             define_matmul_micro_kernel!(x2x3, 2, 3);
@@ -28,7 +27,6 @@ where
         {
             use crate::define_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_matmul_micro_kernel!(x2x1, 2, 1);
             define_matmul_micro_kernel!(x2x2, 2, 2);
             define_matmul_micro_kernel!(x2x3, 2, 3);
@@ -53,6 +51,45 @@ where
     }
 
     #[allow(unused_variables)]
+    fn get_horizontal_kernel(
+        nr: usize,
+        mr: usize,
+    ) -> fn(Pointer<Self>, Pointer<Self>, Pointer<Self>, i64, i64, usize, usize, i64, bool) {
+        #[cfg(target_feature = "avx2")]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 6);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x6x1, 6, 1);
+            return x6x1;
+        }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 2);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x2x1, 2, 1);
+            return x2x1;
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::define_matmul_micro_kernel;
+            assert_eq!(nr, 14);
+            assert_eq!(mr, 1);
+            define_matmul_micro_kernel!(x14x1, 14, 1);
+            return x14x1;
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+
+    #[allow(unused_variables)]
     fn get_inline_asm_kernel(
         nr: usize,
         mr: usize,
@@ -62,7 +99,7 @@ where
     }
 
     #[allow(unused_variables)]
-    fn get_kernel_with_post_op<F: Fn(Self) -> Self, G: Fn(Self::Vec) -> Self::Vec>(
+    fn get_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
         nr: usize,
         mr: usize,
     ) -> fn(
@@ -76,6 +113,8 @@ where
         i64,
         bool,
         bool,
+        usize,
+        usize,
         F,
         G,
     ) {
@@ -83,7 +122,6 @@ where
         {
             use crate::define_post_op_matmul_micro_kernel;
             assert_eq!(nr, 2);
-            // avx2 has 16 registers, each has 256 bits, assume cache line size is 512 bits
             define_post_op_matmul_micro_kernel!(x2x1, 2, 1);
             define_post_op_matmul_micro_kernel!(x2x2, 2, 2);
             define_post_op_matmul_micro_kernel!(x2x3, 2, 3);
@@ -96,7 +134,6 @@ where
         {
             use crate::define_post_op_matmul_micro_kernel;
             assert_eq!(nr, 4);
-            // sse has 16 registers, each has 128 bits, assume cache line size is 512 bits
             define_post_op_matmul_micro_kernel!(x4x1, 4, 1);
             define_post_op_matmul_micro_kernel!(x4x2, 4, 2);
             define_post_op_matmul_micro_kernel!(x4x3, 4, 3);
@@ -121,6 +158,59 @@ where
     }
 
     #[allow(unused_variables)]
+    fn get_horizontal_kernel_with_post_op<F: Fn(Self, usize, usize) -> Self, G: Fn(Self::Vec, usize, usize) -> Self::Vec>(
+        nr: usize,
+        mr: usize,
+    ) -> fn(
+        Pointer<Self>,
+        Pointer<Self>,
+        Pointer<Self>,
+        i64,
+        i64,
+        usize,
+        usize,
+        i64,
+        bool,
+        bool,
+        usize,
+        usize,
+        F,
+        G,
+    ) {
+        assert_eq!(mr, 1);
+        #[cfg(target_feature = "avx2")]
+        {
+            use crate::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 6);
+            define_post_op_matmul_micro_kernel!(x6x1, 6, 1);
+            return x6x1;
+        }
+        #[cfg(all(not(target_feature = "avx2"), target_feature = "sse"))]
+        {
+            use crate::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 4);
+            define_post_op_matmul_micro_kernel!(x4x1, 4, 1);
+            return [x4x1, x4x2, x4x3][mr - 1];
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            use crate::define_post_op_matmul_micro_kernel;
+            assert_eq!(nr, 14);
+            define_post_op_matmul_micro_kernel!(x14x1, 14, 1);
+            return x14x1;
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+
+
+    #[allow(unused_variables)]
     fn get_mixed_precision_kernel<MixedType>(
         nr: usize,
         mr: usize,
@@ -134,8 +224,8 @@ where
         usize,
         i64,
         bool,
-        fn(*const MixedType::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        fn(*mut Self::Vec, *const MixedType::Vec),
+        fn(&mut Self, &MixedType),
     )
     where
         MixedType: CommonBounds,
@@ -146,8 +236,8 @@ where
     #[allow(unused_variables)]
     fn get_mixed_precision_kernel_with_post_op<
         MixedType,
-        F: Fn(Self) -> Self,
-        G: Fn(Self::Vec) -> Self::Vec,
+        F: Fn(Self, usize, usize) -> Self,
+        G: Fn(Self::Vec, usize, usize) -> Self::Vec,
     >(
         nr: usize,
         mr: usize,
@@ -162,8 +252,10 @@ where
         i64,
         bool,
         bool,
-        fn(*const MixedType::Vec) -> Self::Vec,
-        fn(MixedType) -> Self,
+        usize,
+        usize,
+        fn(*mut Self::Vec, *const MixedType::Vec),
+        fn(&mut Self, &MixedType),
         F,
         G,
     )
@@ -210,6 +302,24 @@ where
         #[cfg(target_feature = "neon")]
         {
             8
+        }
+        #[cfg(all(
+            not(target_feature = "avx2"),
+            not(target_feature = "sse"),
+            not(target_feature = "neon")
+        ))]
+        {
+            unimplemented!()
+        }
+    }
+    fn get_horizontal_max_nr() -> usize {
+        #[cfg(any(target_feature = "avx2", target_feature = "sse"))]
+        {
+            6
+        }
+        #[cfg(target_feature = "neon")]
+        {
+            14
         }
         #[cfg(all(
             not(target_feature = "avx2"),

@@ -1,5 +1,5 @@
 use hpt_common::utils::pointer::Pointer;
-use hpt_traits::tensor::{CommonBounds, TensorInfo};
+use hpt_traits::tensor::CommonBounds;
 use hpt_types::into_scalar::Cast;
 use std::fmt::Formatter;
 
@@ -7,8 +7,10 @@ use crate::formats::format_val;
 
 /// # Internal Function
 /// Pushes the string representation of the tensor to the string.
-fn main_loop_push_str<U, T>(
-    tensor: &U,
+fn main_loop_push_str<T>(
+    mut ptr: Pointer<T>,
+    shape: &[i64],
+    strides: &[i64],
     lr_elements_size: usize,
     inner_loop: usize,
     last_stride: i64,
@@ -16,10 +18,8 @@ fn main_loop_push_str<U, T>(
     precision: usize,
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
-    shape: &Vec<i64>,
-    mut ptr: Pointer<T>,
+    shape_m1: &Vec<i64>,
 ) where
-    U: TensorInfo<T>,
     T: CommonBounds + Cast<f64>,
 {
     let print = |string: &mut String, ptr: Pointer<T>, offset: &mut i64, col: usize| {
@@ -31,7 +31,7 @@ fn main_loop_push_str<U, T>(
         *offset += last_stride;
     };
     let mut outer_loop = 1;
-    for i in tensor.shape().iter().take(tensor.ndim() - 1) {
+    for i in shape.iter().take(shape.len() - 1) {
         if i > &(2 * (lr_elements_size as i64)) {
             outer_loop *= 2 * (lr_elements_size as i64);
         } else {
@@ -56,39 +56,35 @@ fn main_loop_push_str<U, T>(
             }
         }
         string.push_str("]");
-        for k in (0..tensor.ndim() - 1).rev() {
-            if prg[k] < shape[k] {
+        for k in (0..shape.len() - 1).rev() {
+            if prg[k] < shape_m1[k] {
                 prg[k] += 1;
-                ptr.offset(tensor.strides()[k]);
-                if tensor.shape()[k] > 2 * (lr_elements_size as i64)
-                    && prg[k] == (lr_elements_size as i64)
-                {
+                ptr += strides[k];
+                if shape[k] > 2 * (lr_elements_size as i64) && prg[k] == (lr_elements_size as i64) {
                     string.push_str("\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
                     string.push_str("...");
                     string.push_str("\n\n");
                     string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
-                    string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
-                    ptr.offset(
-                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64)),
-                    );
-                    prg[k] += tensor.shape()[k] - 2 * (lr_elements_size as i64);
-                    assert!(prg[k] < tensor.shape()[k]);
+                    string.push_str(&"[".repeat(shape.len() - (k + 1)));
+                    ptr += strides[k] * (shape[k] - 2 * (lr_elements_size as i64));
+                    prg[k] += shape[k] - 2 * (lr_elements_size as i64);
+                    assert!(prg[k] < shape[k]);
                     break;
                 }
 
                 string.push_str("\n");
                 string.push_str(&" ".repeat(k + 1 + "Tensor(".len()));
-                string.push_str(&"[".repeat(tensor.ndim() - (k + 1)));
-                assert!(prg[k] < tensor.shape()[k]);
+                string.push_str(&"[".repeat(shape.len() - (k + 1)));
+                assert!(prg[k] < shape[k]);
                 break;
             } else {
                 prg[k] = 0;
                 string.push_str("]");
-                if k >= 1 && prg[k - 1] < shape[k - 1] {
-                    string.push_str(&"\n".repeat(tensor.ndim() - (k + 1)));
+                if k >= 1 && prg[k - 1] < shape_m1[k - 1] {
+                    string.push_str(&"\n".repeat(shape.len() - (k + 1)));
                 }
-                ptr.offset(-tensor.strides()[k] * shape[k]);
+                ptr += -strides[k] * shape_m1[k];
             }
         }
     }
@@ -96,22 +92,22 @@ fn main_loop_push_str<U, T>(
 
 /// # Internal Function
 /// Get the width of each column in the tensor.
-fn main_loop_get_width<U, T>(
-    tensor: &U,
+fn main_loop_get_width<T>(
+    mut ptr: Pointer<T>,
+    shape: &[i64],
+    strides: &[i64],
     lr_elements_size: usize,
     inner_loop: usize,
     last_stride: i64,
     precision: usize,
     col_width: &mut Vec<usize>,
     prg: &mut Vec<i64>,
-    shape: &Vec<i64>,
-    mut ptr: Pointer<T>,
+    shape_m1: &Vec<i64>,
 ) where
-    U: TensorInfo<T>,
     T: CommonBounds + Cast<f64>,
 {
     let mut outer_loop = 1;
-    for i in tensor.shape().iter().take(tensor.ndim() - 1) {
+    for i in shape.iter().take(shape.len() - 1) {
         if i > &(2 * (lr_elements_size as i64)) {
             outer_loop *= 2 * (lr_elements_size as i64);
         } else {
@@ -138,25 +134,21 @@ fn main_loop_get_width<U, T>(
                 offset += last_stride;
             }
         }
-        for k in (0..tensor.ndim() - 1).rev() {
-            if prg[k] < shape[k] {
+        for k in (0..shape.len() - 1).rev() {
+            if prg[k] < shape_m1[k] {
                 prg[k] += 1;
-                ptr.offset(tensor.strides()[k]);
-                if tensor.shape()[k] > 2 * (lr_elements_size as i64)
-                    && prg[k] == (lr_elements_size as i64)
-                {
-                    ptr.offset(
-                        tensor.strides()[k] * (tensor.shape()[k] - 2 * (lr_elements_size as i64)),
-                    );
-                    prg[k] += tensor.shape()[k] - 2 * (lr_elements_size as i64);
-                    assert!(prg[k] < tensor.shape()[k]);
+                ptr += strides[k];
+                if shape[k] > 2 * (lr_elements_size as i64) && prg[k] == (lr_elements_size as i64) {
+                    ptr += strides[k] * (shape[k] - 2 * (lr_elements_size as i64));
+                    prg[k] += shape[k] - 2 * (lr_elements_size as i64);
+                    assert!(prg[k] < shape[k]);
                     break;
                 }
-                assert!(prg[k] < tensor.shape()[k]);
+                assert!(prg[k] < shape[k]);
                 break;
             } else {
                 prg[k] = 0;
-                ptr.offset(-tensor.strides()[k] * shape[k]);
+                ptr += -strides[k] * shape_m1[k];
             }
         }
     }
@@ -170,57 +162,63 @@ fn main_loop_get_width<U, T>(
 /// - `lr_elements_size`: Number of elements to display in left and right for each row and column.
 /// - `precision`: Number of decimal places to display for floating point numbers.
 /// - `show_backward`: A boolean indicating whether to display the gradient function of the tensor, currently only used in DiffTensor.
-pub fn display<U, T>(
-    tensor: U,
+pub fn display<T>(
+    pointer: Pointer<T>,
+    shape: &[i64],
+    strides: &[i64],
     f: &mut Formatter<'_>,
     lr_elements_size: usize,
     precision: usize,
     show_backward: bool,
 ) -> std::fmt::Result
 where
-    U: TensorInfo<T>,
     T: CommonBounds + Cast<f64>,
 {
     let mut string: String = String::new();
-    if tensor.size() == 0 {
+    let size = shape.iter().product::<i64>();
+    let ndim = shape.len();
+    if size == 0 {
         write!(f, "{}", "Tensor([])\n".to_string())
-    } else if tensor.ndim() == 0 {
-        let val = format_val(unsafe { tensor.ptr().ptr.read() }, precision);
+    } else if ndim == 0 {
+        let val = format_val(unsafe { pointer.ptr.read() }, precision);
         write!(f, "{}", format!("Tensor({})\n", val))
     } else {
-        let ptr: Pointer<T> = tensor.ptr();
+        let ptr: Pointer<T> = pointer;
         if !ptr.ptr.is_null() {
-            let inner_loop: usize = tensor.shape()[tensor.ndim() - 1] as usize;
-            let mut prg: Vec<i64> = vec![0; tensor.ndim()];
-            let mut shape: Vec<i64> = tensor.shape().to_vec();
-            shape.iter_mut().for_each(|x: &mut i64| {
+            let inner_loop: usize = shape[ndim - 1] as usize;
+            let mut prg: Vec<i64> = vec![0; ndim];
+            let mut shape_m1: Vec<i64> = shape.to_vec();
+            shape_m1.iter_mut().for_each(|x: &mut i64| {
                 *x -= 1;
             });
-            let mut strides: Vec<i64> = tensor.strides().to_vec();
-            shape.iter().enumerate().for_each(|(i, x)| {
+            let mut strides_new: Vec<i64> = strides.to_vec();
+            shape_m1.iter().enumerate().for_each(|(i, x)| {
                 if *x == 0 {
-                    strides[i] = 0;
+                    strides_new[i] = 0;
                 }
             });
-            let last_stride = strides[tensor.ndim() - 1];
+            let last_stride = strides_new[ndim - 1];
             string.push_str("Tensor(");
-            for _ in 0..tensor.ndim() {
+            for _ in 0..ndim {
                 string.push_str("[");
             }
             let mut col_width: Vec<usize> = vec![0; inner_loop];
             main_loop_get_width(
-                &tensor,
+                ptr,
+                shape,
+                strides,
                 lr_elements_size,
                 inner_loop,
                 last_stride,
                 precision,
                 &mut col_width,
                 &mut prg,
-                &shape,
-                ptr.clone(),
+                &shape_m1,
             );
             main_loop_push_str(
-                &tensor,
+                ptr,
+                shape,
+                strides,
                 lr_elements_size,
                 inner_loop,
                 last_stride,
@@ -228,18 +226,15 @@ where
                 precision,
                 &mut col_width,
                 &mut prg,
-                &shape,
-                ptr.clone(),
+                &shape_m1,
             );
         }
-        let shape_str = tensor
-            .shape()
+        let shape_str = shape
             .iter()
             .map(|x| x.to_string())
             .collect::<Vec<String>>()
             .join(", ");
-        let strides_str = tensor
-            .strides()
+        let strides_str = strides
             .iter()
             .map(|x| x.to_string())
             .collect::<Vec<String>>()

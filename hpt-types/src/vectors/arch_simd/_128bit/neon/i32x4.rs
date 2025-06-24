@@ -34,12 +34,6 @@ impl VecTrait<i32> for i32x4 {
     const SIZE: usize = 4;
     type Base = i32;
     #[inline(always)]
-    fn copy_from_slice(&mut self, slice: &[i32]) {
-        unsafe {
-            self.0 = vld1q_s32(slice.as_ptr());
-        }
-    }
-    #[inline(always)]
     fn mul_add(self, a: Self, b: Self) -> Self {
         unsafe { Self(vmlaq_s32(b.0, self.0, a.0)) }
     }

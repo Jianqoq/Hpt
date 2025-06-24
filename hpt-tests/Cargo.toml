@@ -8,13 +8,14 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 hpt-common = { path = "../hpt-common" }
 hpt = { path = "../hpt", features = ["track_caller", "bound_check"] }
+hpt-dyn = { path = "../hpt-dyn", features = ["f16", "f32", "bound_check"] }
 hpt-types = { path = "../hpt-types" }
 serde_json = { workspace = true }
 tch = { workspace = true }
 anyhow = { workspace = true }
 rayon = { workspace = true }
 paste = { workspace = true }
-candle-core = { workspace = true }
+# candle-core = { workspace = true }
 rand = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }

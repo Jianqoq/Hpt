@@ -41,7 +41,7 @@ where
 
     let (out_height, out_width) = (output.shape()[1], output.shape()[2]);
     let img = input.clone();
-    let out = output.ptr();
+    let out = output.ptr::<T>();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
@@ -57,8 +57,8 @@ where
 
     let outer = batch * out_height;
 
-    let inp_ptr = input.ptr();
-    let kernel_ptr = kernels.ptr();
+    let inp_ptr = input.ptr::<T>();
+    let kernel_ptr = kernels.ptr::<T>();
     let nr = T::get_max_nr() * T::Vec::SIZE;
     let mr = T::get_max_mr().min(out_width as usize);
     let param = calculate_kernel_params::<T>(

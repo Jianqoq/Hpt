@@ -110,10 +110,7 @@ where
         let device = cudarc::driver::CudaDevice::new(DEVICE_ID)?;
         let backend = Backend::<Cuda>::new(ptr, device, false).clone();
         Ok(Self {
-            #[cfg(feature = "bound_check")]
             data: Pointer::new(ptr as *mut T, shape.size()),
-            #[cfg(not(feature = "bound_check"))]
-            data: Pointer::new(ptr as *mut T),
             parent: None,
             layout: Layout::from(&shape),
             mem_layout: Arc::new(

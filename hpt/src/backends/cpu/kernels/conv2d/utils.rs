@@ -272,13 +272,10 @@ pub(crate) fn create_packed_input_img2col<T: CommonBounds>(
 
     let layout = std::alloc::Layout::from_size_align(packed_size as usize, ALIGN).unwrap();
     let buffer = unsafe { std::alloc::alloc(layout) };
-    #[cfg(feature = "bound_check")]
     let buffer_ptr = Pointer::new(
         buffer as *mut T,
         packed_size / (std::mem::size_of::<T>() as i64),
     );
-    #[cfg(not(feature = "bound_check"))]
-    let buffer_ptr = Pointer::new(buffer as *mut T);
 
     (buffer_ptr, layout)
 }
@@ -346,7 +343,7 @@ pub(crate) fn kernel_params(
         let n_iter = n.div_ceil(auto_nc);
         n.div_ceil(n_iter * nr) * nr
     };
-    let auto_nc = Ord::min(auto_nc, 2 * nr);
+    let auto_nc = Ord::min(auto_nc, 4 * nr);
 
     let auto_mc = if l3_cache_bytes == 0 {
         0

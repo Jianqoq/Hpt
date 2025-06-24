@@ -40,9 +40,9 @@ mod with_simd;
 /// A trait for converting a tensor into an iterator.
 pub trait TensorIterator<'a, T: CommonBounds>
 where
-    Self: TensorInfo<T> + 'a,
-    &'a Self: TensorInfo<T>,
-    &'a mut Self: TensorInfo<T>,
+    Self: TensorInfo + 'a,
+    &'a Self: TensorInfo,
+    &'a mut Self: TensorInfo,
 {
     /// Convert the tensor into a strided iterator.
     ///

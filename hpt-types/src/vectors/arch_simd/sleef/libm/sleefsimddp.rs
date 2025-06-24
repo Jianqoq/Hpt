@@ -32,8 +32,10 @@
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 use crate::arch_simd::sleef::arch::helper_aarch64 as helper;
-#[cfg(all(target_arch = "x86_64", target_feature = "avx2"))]
+#[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(target_feature = "avx512f")))]
 use crate::arch_simd::sleef::arch::helper_avx2 as helper;
+#[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
+use crate::arch_simd::sleef::arch::helper_avx512 as helper;
 #[cfg(all(
     target_arch = "x86_64",
     target_feature = "sse",
@@ -61,7 +63,7 @@ use crate::{
                 ddigetdd_vd2_ddi, ddigeti_vi_ddi, ddisetdd_ddi_ddi_vd2, ddisetddi_ddi_vd2_vi,
                 digetd_vd_di, digeti_vi_di, rempisub, vilogb2k_vi_vd, vilogbk_vi_vd, visint_vo_vd,
                 visnegzero_vo_vd, visodd_vo_vd, vldexp2_vd_vd_vi, vldexp3_vd_vd_vi,
-                vmulsign_vd_vd_vd, vround2_vd_vd, vsignbit_vm_vd, vsignbit_vo_vd, vtruncate2_vd_vd,
+                vmulsign_vd_vd_vd, vround2_vd_vd, vsignbit_vo_vd, vtruncate2_vd_vd,
                 DDI,
             },
             dd::{
@@ -108,7 +110,7 @@ unsafe fn rempi(a: VDouble) -> DDI {
 
     #[cfg(target_feature = "avx512f")]
     {
-        ex = vandnot_vi_vi_vi(vsra_vi_vi_i(ex, 31), ex);
+        ex = vandnot_vi_vi_vi(vsra_vi_vi_i::<31>(ex), ex);
         ex = vand_vi_vi_vi(ex, vcast_vi_i(1023));
     }
 
@@ -993,6 +995,8 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vd_vd, vgetexp_vd_vd};
+        
         let mut e = vgetexp_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(1.0 / 0.75)));
         e = vsel_vd_vo_vd_vd(vispinf_vo_vd(e), vcast_vd_d(1024.0), e);
         let m = vgetmant_vd_vd(d);
@@ -1054,11 +1058,11 @@ pub(crate) unsafe fn xlog_u1(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vd_vd_vd_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::{vfixup_vd_vd_vd_vi2_i, vcast_vi2_i};
+        r = vfixup_vd_vd_vd_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -1138,6 +1142,7 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
 
     #[cfg(not(target_feature = "avx512f"))]
     {
+        use crate::simd::sleef::common::commonfuncs::vsignbit_vm_vd;
         z = vsel_vd_vo_vd_vd(
             visinf_vo_vd(d),
             vmulsign_vd_vd_vd(vcast_vd_d(f64::INFINITY), vd2getx_vd_vd2(q2)),
@@ -1154,7 +1159,7 @@ pub(crate) unsafe fn xcbrt_u1(d: VDouble) -> VDouble {
     {
         z = vsel_vd_vo_vd_vd(
             visinf_vo_vd(s),
-            vmulsign_vd_vd_vd(vcast_vd_d(SLEEF_INFINITY), s),
+            vmulsign_vd_vd_vd(vcast_vd_d(f64::INFINITY), s),
             z,
         );
         z = vsel_vd_vo_vd_vd(
@@ -1267,6 +1272,7 @@ unsafe fn logk(d: VDouble) -> VDouble2 {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vd_vd, vgetexp_vd_vd};
         let mut e = vgetexp_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(1.0 / 0.75)));
         e = vsel_vd_vo_vd_vd(vispinf_vo_vd(e), vcast_vd_d(1024.0), e);
         let m = vgetmant_vd_vd(d);
@@ -1879,6 +1885,7 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vd_vd, vgetexp_vd_vd};
         let mut e = vgetexp_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(1.0 / 0.75)));
         e = vsel_vd_vo_vd_vd(vispinf_vo_vd(e), vcast_vd_d(1024.0), e);
         let m = vgetmant_vd_vd(d);
@@ -1946,11 +1953,11 @@ pub(crate) unsafe fn xlog10(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vd_vd_vd_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::{vfixup_vd_vd_vd_vi2_i, vcast_vi2_i};
+        r = vfixup_vd_vd_vd_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -1971,6 +1978,7 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     let (m, e) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::{vgetmant_vd_vd, vgetexp_vd_vd};
         let mut e = vgetexp_vd_vd(vmul_vd_vd_vd(d, vcast_vd_d(1.0 / 0.75)));
         e = vsel_vd_vo_vd_vd(vispinf_vo_vd(e), vcast_vd_d(1024.0), e);
         let m = vgetmant_vd_vd(d);
@@ -2037,11 +2045,11 @@ pub(crate) unsafe fn xlog2(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     {
-        r = vfixup_vd_vd_vd_vi2_i(
+        use crate::arch_simd::sleef::arch::helper_avx512::{vfixup_vd_vd_vd_vi2_i, vcast_vi2_i};
+        r = vfixup_vd_vd_vd_vi2_i::<0>(
             r,
             d,
             vcast_vi2_i((4 << (2 * 4)) | (3 << (4 * 4)) | (5 << (5 * 4)) | (2 << (6 * 4))),
-            0,
         );
     }
 
@@ -2069,6 +2077,7 @@ pub(crate) unsafe fn xlog1p(d: VDouble) -> VDouble {
 
     #[cfg(target_feature = "avx512f")]
     let (m, s) = {
+        use crate::arch_simd::sleef::arch::helper_avx512::vgetexp_vd_vd;
         let mut e = vgetexp_vd_vd(vmul_vd_vd_vd(dp1, vcast_vd_d(1.0 / 0.75)));
         e = vsel_vd_vo_vd_vd(vispinf_vo_vd(e), vcast_vd_d(1024.0), e);
         let t = vldexp3_vd_vd_vi(vcast_vd_d(1.0), vneg_vi_vi(vrint_vi_vd(e)));

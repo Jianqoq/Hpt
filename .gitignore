@@ -11,6 +11,7 @@ Cargo.lock
 *.txt
 *.model
 *.xml
+*.onnx
 
 .vscode/
 

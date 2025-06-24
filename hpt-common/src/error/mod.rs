@@ -21,3 +21,6 @@ pub mod param;
 pub mod random;
 /// Shape-related errors (dimension mismatch, broadcasting, etc.)
 pub mod shape;
+/// Onnx-related errors
+pub mod onnx;
+

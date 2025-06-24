@@ -158,7 +158,7 @@ where
     }
     let mut output =
         _Tensor::<T, Cpu, DEVICE, A>::empty([batch, out_height, out_width, out_channels])?;
-    let out = output.ptr();
+    let out = output.ptr::<T>();
 
     let osb = output.strides()[0]; // batch
     let osh = output.strides()[1]; // height
@@ -174,8 +174,8 @@ where
 
     let outer = batch * out_height;
 
-    let inp_ptr = img.ptr();
-    let kernel_ptr = kernels.ptr();
+    let inp_ptr = img.ptr::<IM<T>>();
+    let kernel_ptr = kernels.ptr::<T>();
     let nr = T::get_max_mixed_precision_nr() * T::Vec::SIZE;
     let mr = T::get_max_mixed_precision_mr().min(out_width as usize);
     let param = calculate_kernel_params::<T>(
@@ -193,7 +193,7 @@ where
     let buffer =
         create_packed_kernel::<IM<T>, DEVICE, A>(kh, kw, in_channels, out_channels, oc, nr as i64)?;
     pack_kernel_mp(
-        buffer.ptr(),
+        buffer.ptr::<IM<T>>(),
         kernel_ptr,
         in_channels,
         out_channels,
@@ -211,7 +211,7 @@ where
     };
 
     (0..outer).into_par_iter().for_each(|idx| {
-        let kernel = buffer.ptr();
+        let kernel = buffer.ptr::<IM<T>>();
         let b = idx / out_height;
         let ll = idx % out_height;
 

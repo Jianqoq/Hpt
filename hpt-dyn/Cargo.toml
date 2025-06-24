@@ -1,0 +1,70 @@
+[package]
+name = "hpt-dyn"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+half = { workspace = true }
+num-complex = { workspace = true }
+paste = { workspace = true }
+num-traits = { workspace = true }
+hpt-types = { path = "../hpt-types", version = "0.1.1" }
+hpt-macros = { path = "../hpt-macros", version = "0.1.1" }
+hpt-common = { path = "../hpt-common", version = "0.1.1" }
+hpt-traits = { path = "../hpt-traits", version = "0.1.1" }
+hpt-allocator = { path = "../hpt-allocator", version = "0.1.1" }
+hpt-display = { path = "../hpt-display", version = "0.1.1" }
+hpt-iterator = { path = "../hpt-iterator", version = "0.1.1" }
+hpt-dataloader = { path = "../hpt-dataloader", version = "0.1.1" }
+hpt-matmul = { path = "../hpt-matmul", version = "0.1.1" }
+safetensors = { workspace = true }
+cudarc = { workspace = true, optional = true }
+seq-macro = { workspace = true }
+rayon = { workspace = true }
+duplicate = { workspace = true }
+rand = { workspace = true }
+rand_distr = { workspace = true }
+gemm-common = { workspace = true }
+dyn-stack = { workspace = true }
+num_cpus = { workspace = true }
+num = { workspace = true }
+ctor = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+spindle = { workspace = true }
+petgraph = { workspace = true }
+urlencoding = { workspace = true }
+log = { workspace = true }
+num_enum = { workspace = true }
+crossbeam = { workspace = true }
+core_affinity = { workspace = true }
+raw-cpuid = { workspace = true }
+libc = { workspace = true }
+matconv-simd = { path = "../matconv_simd", version = "0.1.0" }
+
+[build-dependencies]
+prost-build = "0.13.5"
+
+[features]
+default = ["f32", "i64"]
+bound_check = ["hpt-matmul/bound_check", "hpt-common/bound_check"]
+cuda = [
+    "cudarc",
+    "hpt-allocator/cuda",
+    "hpt-common/cuda",
+    "hpt-types/cuda",
+    "hpt-macros/cuda",
+]
+f16 = ["hpt-matmul/f16"]
+f32 = ["hpt-matmul/f32"]
+bf16 = ["hpt-matmul/bf16"]
+i8 = ["hpt-matmul/i8"]
+u8 = ["hpt-matmul/u8"]
+i16 = ["hpt-matmul/i16"]
+u16 = ["hpt-matmul/u16"]
+i32 = ["hpt-matmul/i32"]
+u32 = ["hpt-matmul/u32"]
+i64 = ["hpt-matmul/i64"]
+u64 = ["hpt-matmul/u64"]
+f64 = ["hpt-matmul/f64"]
+bool = []

@@ -32,9 +32,9 @@ use traits::Allocator;
 #[allow(non_snake_case)]
 #[ctor::dtor]
 fn free_pools() {
-    CACHE.lock().unwrap().clear();
+    CACHE.clear();
     #[cfg(feature = "cuda")]
-    CUDA_CACHE.lock().unwrap().clear();
+    CUDA_CACHE.clear();
 }
 
 /// Built-in allocator for Hpt
@@ -56,38 +56,35 @@ impl Allocator for HptAllocator<Cpu> {
     #[cfg(feature = "cuda")]
     type CudaAllocator = HptAllocator<Cuda>;
     fn allocate(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
-        device_id: usize,
+        device_id: usize
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        CACHE.lock().unwrap().allocate(layout, device_id)
+        CACHE.allocate(layout, device_id)
     }
     fn allocate_zeroed(
-        &mut self,
+        &self,
         layout: std::alloc::Layout,
-        device_id: usize,
+        device_id: usize
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        CACHE.lock().unwrap().allocate_zeroed(layout, device_id)
+        CACHE.allocate_zeroed(layout, device_id)
     }
     fn deallocate(
-        &mut self,
+        &self,
         ptr: *mut u8,
         layout: &std::alloc::Layout,
         should_drop: bool,
-        device_id: usize,
+        device_id: usize
     ) {
-        CACHE
-            .lock()
-            .unwrap()
-            .deallocate(ptr, layout, should_drop, device_id);
+        CACHE.deallocate(ptr, layout, should_drop, device_id);
     }
 
-    fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
-        CACHE.lock().unwrap().insert_ptr(ptr, device_id);
+    fn insert_ptr(&self, ptr: *mut u8, device_id: usize) {
+        CACHE.insert_ptr(ptr, device_id);
     }
 
-    fn clear(&mut self) {
-        CACHE.lock().unwrap().clear();
+    fn clear(&self) {
+        CACHE.clear();
     }
 
     fn new() -> Self {
@@ -96,8 +93,8 @@ impl Allocator for HptAllocator<Cpu> {
         }
     }
 
-    fn forget(&mut self, ptr: *mut u8, device_id: usize) {
-        CACHE.lock().unwrap().forget(ptr, device_id);
+    fn forget(&self, ptr: *mut u8, device_id: usize) {
+        CACHE.forget(ptr, device_id);
     }
 }
 
@@ -110,7 +107,7 @@ impl Allocator for HptAllocator<Cuda> {
     fn allocate(
         &mut self,
         layout: std::alloc::Layout,
-        device_id: usize,
+        device_id: usize
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
         CUDA_CACHE.lock().unwrap().allocate(layout, device_id)
     }
@@ -118,12 +115,9 @@ impl Allocator for HptAllocator<Cuda> {
     fn allocate_zeroed(
         &mut self,
         layout: std::alloc::Layout,
-        device_id: usize,
+        device_id: usize
     ) -> Result<Self::Output, hpt_common::error::base::TensorError> {
-        CUDA_CACHE
-            .lock()
-            .unwrap()
-            .allocate_zeroed(layout, device_id)
+        CUDA_CACHE.lock().unwrap().allocate_zeroed(layout, device_id)
     }
 
     fn deallocate(
@@ -131,12 +125,9 @@ impl Allocator for HptAllocator<Cuda> {
         ptr: *mut u8,
         layout: &std::alloc::Layout,
         should_drop: bool,
-        device_id: usize,
+        device_id: usize
     ) {
-        CUDA_CACHE
-            .lock()
-            .unwrap()
-            .deallocate(ptr, layout, should_drop, device_id);
+        CUDA_CACHE.lock().unwrap().deallocate(ptr, layout, should_drop, device_id);
     }
 
     fn insert_ptr(&mut self, ptr: *mut u8, device_id: usize) {
